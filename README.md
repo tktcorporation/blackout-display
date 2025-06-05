@@ -1,17 +1,7 @@
-# Blackout Display
+# Tauri + React + Typescript
 
-This repository contains a basic prototype of the **Blackout** application.
-It uses **Tauri** with a React frontend. The application starts in fullscreen
-and displays a black overlay. The opacity can be adjusted and the overlay can
-be toggled with `Ctrl+Shift+B` or by double clicking the screen.
+This template should help get you started developing with Tauri, React and Typescript in Vite.
 
-To run the application:
+## Recommended IDE Setup
 
-```bash
-pnpm install
-pnpm tauri dev
-```
-
-GitHub Actions will automatically build the application for macOS and Windows.
-Build artifacts are uploaded for each platform when pushing to `main` or opening
-a pull request.
+- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
