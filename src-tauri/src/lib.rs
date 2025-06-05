@@ -11,20 +11,23 @@ pub fn run() {
         .setup(|app| {
             #[cfg(desktop)]
             {
-                use tauri::Manager;
-                use tauri_plugin_global_shortcut::{Code, Modifiers, ShortcutState};
+                use tauri::{Emitter, Manager};
+                use tauri_plugin_global_shortcut::{ShortcutState};
                 app.handle().plugin(
                     tauri_plugin_global_shortcut::Builder::new()
                         .with_shortcuts(["CommandOrControl+Shift+B"])?
-                        .with_handler(|app, shortcut, event| {
-                            if event.state == ShortcutState::Pressed
-                                && shortcut.matches(Modifiers::COMMAND_OR_CONTROL, Code::KeyB)
-                            {
-                                let _ = app.emit_all("toggle-overlay", ());
+                        .with_handler(|app, _shortcut, event| {
+                            if event.state == ShortcutState::Pressed {
+                                let _ = app.emit("toggle-overlay", ());
                             }
                         })
                         .build(),
                 )?;
+                
+                // Show window after setup
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                }
             }
             Ok(())
         })

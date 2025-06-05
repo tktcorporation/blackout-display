@@ -4,7 +4,7 @@ import { register } from "@tauri-apps/plugin-global-shortcut";
 import "./App.css";
 
 function App() {
-  const [visible, setVisible] = useState(true);
+  const [visible, setVisible] = useState(false);
   const [opacity, setOpacity] = useState(1);
 
   useEffect(() => {
@@ -39,17 +39,19 @@ function App() {
         display: visible ? "block" : "none",
       }}
     >
-      <div style={{ position: "absolute", top: 10, left: 10, color: "white" }}>
-        Opacity:
-        <input
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          value={opacity}
-          onChange={(e) => setOpacity(parseFloat(e.currentTarget.value))}
-        />
-      </div>
+      {visible && (
+        <div style={{ position: "absolute", top: 10, left: 10, color: "white" }}>
+          Opacity:
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={opacity}
+            onChange={(e) => setOpacity(parseFloat(e.currentTarget.value))}
+          />
+        </div>
+      )}
     </div>
   );
 }
