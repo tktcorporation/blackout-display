@@ -1,0 +1,41 @@
+name: Build Tauri App
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: blackout
+    steps:
+      - uses: actions/checkout@v3
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 9
+          run_install: false
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      - name: Install dependencies
+        run: pnpm install
+      - name: Build Tauri package
+        run: pnpm tauri build --ci
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: blackout-${{ matrix.os }}
+          path: src-tauri/target/release/bundle
