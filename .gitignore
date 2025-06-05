@@ -1,0 +1,4 @@
+**/node_modules
+**/dist
+blackout/src-tauri/target
+.DS_Store
