@@ -12,12 +12,11 @@
   "app": {
     "windows": [
       {
-        "title": "blackout",
-        "fullscreen": true,
-        "transparent": true,
-        "decorations": false,
-        "alwaysOnTop": true,
-        "resizable": false,
+        "title": "Blackout Display Control",
+        "width": 600,
+        "height": 400,
+        "center": true,
+        "resizable": true,
         "visible": false
       }
     ],
@@ -28,6 +27,9 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": []
+    "icon": [],
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    }
   }
 }

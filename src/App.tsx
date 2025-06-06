@@ -1,59 +1,20 @@
-import { useEffect, useState } from "react";
-import { listen } from "@tauri-apps/api/event";
-import { register } from "@tauri-apps/plugin-global-shortcut";
+import { useEffect } from "react";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { ControlPanel } from "./ControlPanel";
+import { Overlay } from "./Overlay";
 import "./App.css";
 
 function App() {
-  const [visible, setVisible] = useState(false);
-  const [opacity, setOpacity] = useState(1);
+  const currentWindow = getCurrentWebviewWindow();
+  const isOverlay = currentWindow.label.startsWith('overlay-');
 
   useEffect(() => {
-    const registerShortcut = async () => {
-      try {
-        await register("CommandOrControl+Shift+B", (event) => {
-          if (event.state === "Pressed") {
-            setVisible((v) => !v);
-          }
-        });
-      } catch (e) {
-        console.error("failed to register shortcut", e);
-      }
-    };
-    registerShortcut();
-    const unlistenPromise = listen("toggle-overlay", () => {
-      setVisible((v) => !v);
-    });
-    return () => {
-      unlistenPromise.then((unlisten) => unlisten());
-    };
+    // Show the window after app loads
+    currentWindow.show();
   }, []);
 
-  return (
-    <div
-      onDoubleClick={() => setVisible(false)}
-      style={{
-        backgroundColor: "black",
-        opacity: opacity,
-        width: "100vw",
-        height: "100vh",
-        display: visible ? "block" : "none",
-      }}
-    >
-      {visible && (
-        <div style={{ position: "absolute", top: 10, left: 10, color: "white" }}>
-          Opacity:
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            value={opacity}
-            onChange={(e) => setOpacity(parseFloat(e.currentTarget.value))}
-          />
-        </div>
-      )}
-    </div>
-  );
+  // Render different components based on window type
+  return isOverlay ? <Overlay /> : <ControlPanel />;
 }
 
 export default App;
