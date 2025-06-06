@@ -42,12 +42,15 @@ impl Display {
             .transparent(true)
             .build()?;
         
-        // Set transparent background
+        // Set transparent background and enable click-through
         #[cfg(target_os = "macos")]
         {
             use tauri::window::Color;
             let _ = window.set_background_color(Some(Color(0, 0, 0, 0)));
         }
+        
+        // Enable click-through for all platforms
+        let _ = window.set_ignore_cursor_events(true);
         
         Ok(window)
     }
