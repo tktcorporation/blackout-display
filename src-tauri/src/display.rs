@@ -38,6 +38,7 @@ impl Display {
             .visible(false)
             .skip_taskbar(true)
             .accept_first_mouse(false)
+            .focused(false)
             .transparent(true)
             .build()?;
         
@@ -95,7 +96,7 @@ pub fn create_overlay_for_display(
         match display.create_overlay_window(&app_handle) {
             Ok(window) => {
                 // Load the overlay page
-                let _ = window.eval(&format!(
+                let _ = window.eval(format!(
                     "window.__DISPLAY_ID__ = '{}';",
                     display_id
                 ));

@@ -17,6 +17,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Dependencies
 - `pnpm install` - Install all dependencies
 
+### Code Quality
+- `pnpm lint` - Run Biome linter on TypeScript files
+- `pnpm lint:fix` - Auto-fix linting issues
+- `pnpm typecheck` - Run TypeScript type checking
+- `cargo clippy --manifest-path src-tauri/Cargo.toml` - Run Rust linter
+
+**IMPORTANT**: Always run linting and type checking after making changes:
+```bash
+pnpm lint src/ && pnpm typecheck && cargo clippy --manifest-path src-tauri/Cargo.toml
+```
+
 ## Architecture
 
 This is a Tauri v2 application that creates a fullscreen black overlay for screen blackout purposes.
