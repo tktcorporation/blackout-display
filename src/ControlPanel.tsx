@@ -42,7 +42,7 @@ export function ControlPanel() {
         newStates.set(display.id, {
           display_id: display.id,
           is_blackout: false,
-          opacity: 85
+          opacity: 50
         });
       });
       setDisplayStates(newStates);
@@ -147,7 +147,7 @@ export function ControlPanel() {
           const state = displayStates.get(display.id) || {
             display_id: display.id,
             is_blackout: false,
-            opacity: 85
+            opacity: 50
           };
           
           return (

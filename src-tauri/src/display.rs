@@ -38,9 +38,10 @@ impl Display {
             .visible(false)
             .skip_taskbar(true)
             .accept_first_mouse(false)
+            .transparent(true)
             .build()?;
         
-        // Enable transparency for overlay windows
+        // Set transparent background
         #[cfg(target_os = "macos")]
         {
             use tauri::window::Color;
@@ -81,6 +82,13 @@ pub fn create_overlay_for_display(
     app_handle: tauri::AppHandle,
     display_id: String,
 ) -> Result<(), String> {
+    let window_label = format!("overlay-{}", display_id);
+    
+    // Check if window already exists
+    if app_handle.get_webview_window(&window_label).is_some() {
+        return Ok(()); // Window already exists, return success
+    }
+    
     let displays = get_displays(app_handle.clone());
     
     if let Some(display) = displays.iter().find(|d| d.id == display_id) {

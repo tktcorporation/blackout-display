@@ -10,6 +10,7 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
         "title": "Blackout Display Control",
@@ -17,7 +18,8 @@
         "height": 400,
         "center": true,
         "resizable": true,
-        "visible": false
+        "visible": false,
+        "transparent": true
       }
     ],
     "security": {

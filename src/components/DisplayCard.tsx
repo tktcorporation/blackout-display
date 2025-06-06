@@ -32,6 +32,7 @@ export const DisplayCard: React.FC<DisplayCardProps> = ({ display, state, onStat
 
   const handleOpacityChange = async (opacity: number) => {
     try {
+      console.log('Setting opacity:', opacity, 'normalized:', opacity / 100);
       await invoke('set_overlay_opacity', { 
         displayId: display.id, 
         opacity: opacity / 100 
