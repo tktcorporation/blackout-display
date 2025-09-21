@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 use crate::error::{IpcError, IpcErrorCode, IpcResult, IntoIpcResult};
-use crate::state::{get_app_state, OverlayState};
+use crate::state::get_app_state;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Display {
@@ -30,30 +30,31 @@ impl Display {
     ) -> Result<WebviewWindow, tauri::Error> {
         let window_label = format!("overlay-{}", self.id);
         
-        let window = WebviewWindowBuilder::new(app_handle, &window_label, WebviewUrl::App("index.html".into()))
-            .title(format!("Blackout Overlay - {}", self.name))
-            .position(self.x as f64, self.y as f64)
-            .inner_size(self.width as f64, self.height as f64)
-            .fullscreen(false)
-            .decorations(false)
-            .always_on_top(true)
-            .resizable(false)
-            .visible(false)
-            .skip_taskbar(true)
-            .accept_first_mouse(false)
-            .focused(false)
-            .transparent(true)
-            .build()?;
+        let window = WebviewWindowBuilder::new(
+            app_handle,
+            window_label,
+            WebviewUrl::default(),
+        )
+        .title(format!("Overlay - {}", self.name))
+        .position(self.x as f64, self.y as f64)
+        .inner_size(self.width as f64, self.height as f64)
+        .fullscreen(true)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .focused(false)
+        .visible(false)
+        .transparent(true)
+        .accept_first_mouse(false)
+        .build()?;
         
-        // Set transparent background and enable click-through
+        // macOS-specific settings for transparency
         #[cfg(target_os = "macos")]
         {
             use tauri::window::Color;
             let _ = window.set_background_color(Some(Color(0, 0, 0, 0)));
+            // Make window click-through
+            let _ = window.set_ignore_cursor_events(true);
         }
-        
-        // Enable click-through for all platforms
-        let _ = window.set_ignore_cursor_events(true);
         
         Ok(window)
     }
@@ -89,9 +90,10 @@ pub fn get_displays(app_handle: tauri::AppHandle) -> IpcResult<Vec<Display>> {
 #[tauri::command]
 pub fn create_overlay_for_display(
     app_handle: tauri::AppHandle,
-    display_id: String,
+    #[allow(non_snake_case)]
+    displayId: String,
 ) -> IpcResult<()> {
-    let window_label = format!("overlay-{}", display_id);
+    let window_label = format!("overlay-{}", displayId);
     
     // Check if window already exists
     if app_handle.get_webview_window(&window_label).is_some() {
@@ -102,37 +104,27 @@ pub fn create_overlay_for_display(
     
     let display = displays
         .iter()
-        .find(|d| d.id == display_id)
+        .find(|d| d.id == displayId)
         .ok_or_else(|| {
             IpcError::new(
                 IpcErrorCode::DisplayNotFound,
-                format!("Display '{}' not found", display_id),
+                format!("Display '{}' not found", displayId),
             )
         })?;
     
-    // Create the overlay window
-    let window = display.create_overlay_window(&app_handle).map_err(|e| {
-        IpcError::with_details(
-            IpcErrorCode::WindowCreateFailed,
-            format!("Failed to create overlay window for display '{}'", display_id),
-            serde_json::json!({ "display_id": display_id, "error": e.to_string() }),
-        )
-    })?;
-    
-    // Initialize display ID in the window
-    window
-        .eval(format!("window.__DISPLAY_ID__ = '{}';", display_id))
+    // Create overlay window
+    let _window = display.create_overlay_window(&app_handle)
         .map_err(|e| {
             IpcError::new(
-                IpcErrorCode::Unknown,
-                format!("Failed to set display ID in window: {}", e),
+                IpcErrorCode::WindowCreateFailed,
+                format!("Failed to create overlay window: {}", e),
             )
         })?;
     
-    // Initialize state for the overlay
+    // Initialize state for this overlay
     let state = get_app_state(&app_handle);
-    let overlay_state = OverlayState::new(display_id.clone());
-    state.set_overlay_state(display_id, overlay_state)?;
+    let overlay_state = crate::state::OverlayState::new(displayId.clone());
+    state.set_overlay_state(displayId, overlay_state)?;
     
     Ok(())
 }
@@ -140,22 +132,41 @@ pub fn create_overlay_for_display(
 #[tauri::command]
 pub fn toggle_overlay_visibility(
     app_handle: tauri::AppHandle,
-    display_id: String,
+    #[allow(non_snake_case)]
+    displayId: String,
     visible: bool,
 ) -> IpcResult<()> {
-    let window_label = format!("overlay-{}", display_id);
+    let window_label = format!("overlay-{}", displayId);
     
-    // Verify window exists
-    let window = app_handle.get_webview_window(&window_label).ok_or_else(|| {
-        IpcError::new(
-            IpcErrorCode::DisplayNotFound,
-            format!("Overlay window not found for display '{}'", display_id),
-        )
-    })?;
+    // Handle window creation if needed
+    let window = if visible {
+        // Try to get existing window first
+        match app_handle.get_webview_window(&window_label) {
+            Some(w) => w,
+            None => {
+                // Create window if it doesn't exist
+                create_overlay_for_display(app_handle.clone(), displayId.clone())?;
+                
+                // Get the newly created window
+                app_handle.get_webview_window(&window_label).ok_or_else(|| {
+                    IpcError::new(
+                        IpcErrorCode::WindowCreateFailed,
+                        "Failed to get overlay window after creation",
+                    )
+                })?
+            }
+        }
+    } else {
+        // If hiding and window doesn't exist, that's ok
+        match app_handle.get_webview_window(&window_label) {
+            Some(w) => w,
+            None => return Ok(()),
+        }
+    };
     
     // Update state first
     let state = get_app_state(&app_handle);
-    state.update_overlay_state(&display_id, |overlay| {
+    state.update_overlay_state(&displayId, |overlay| {
         overlay.is_visible = visible;
     })?;
     
@@ -177,15 +188,30 @@ pub fn toggle_overlay_visibility(
             // Try to recover by recreating the window if it failed
             if visible {
                 // Log error and attempt recovery
-                eprintln!("Failed to show overlay window: {}", e);
+                eprintln!("Failed to show overlay window: {}. Attempting recovery...", e);
                 
-                // Update state to reflect failure
-                let _ = state.update_overlay_state(&display_id, |overlay| {
-                    overlay.is_visible = false;
-                });
+                // Close the problematic window
+                let _ = window.close();
+                
+                // Remove from state
+                state.remove_overlay_state(&displayId)?;
+                
+                // Try to recreate
+                create_overlay_for_display(app_handle.clone(), displayId.clone())?;
+                
+                // Try to show again
+                if let Some(new_window) = app_handle.get_webview_window(&window_label) {
+                    new_window.show()
+                        .map_err(|e| IpcError::from_error(IpcErrorCode::WindowCreateFailed, &e))?;
+                    state.update_overlay_state(&displayId, |overlay| {
+                        overlay.is_visible = true;
+                    })?;
+                }
+                
+                Ok(())
+            } else {
+                Err(IpcError::from_error(IpcErrorCode::Unknown, &e))
             }
-            
-            Err(IpcError::from_error(IpcErrorCode::WindowCreateFailed, &e))
         }
     }
 }
@@ -193,36 +219,35 @@ pub fn toggle_overlay_visibility(
 #[tauri::command]
 pub fn set_overlay_opacity(
     app_handle: tauri::AppHandle,
-    display_id: String,
+    #[allow(non_snake_case)]
+    displayId: String,
     opacity: f32,
 ) -> IpcResult<()> {
     // Validate opacity range
     if !(0.0..=1.0).contains(&opacity) {
         return Err(IpcError::new(
             IpcErrorCode::InvalidParameter,
-            format!("Opacity must be between 0.0 and 1.0, got: {}", opacity),
+            format!("Opacity must be between 0.0 and 1.0, got {}", opacity),
         ));
     }
     
-    let window_label = format!("overlay-{}", display_id);
+    let window_label = format!("overlay-{}", displayId);
+    let window = app_handle.get_webview_window(&window_label)
+        .ok_or_else(|| {
+            IpcError::new(
+                IpcErrorCode::DisplayNotFound,
+                format!("Overlay window not found for display '{}'", displayId),
+            )
+        })?;
     
-    // Verify window exists
-    let window = app_handle.get_webview_window(&window_label).ok_or_else(|| {
-        IpcError::new(
-            IpcErrorCode::DisplayNotFound,
-            format!("Overlay window not found for display '{}'", display_id),
-        )
-    })?;
-    
-    // Update state
+    // Update opacity in state
     let state = get_app_state(&app_handle);
-    state.update_overlay_state(&display_id, |overlay| {
+    state.update_overlay_state(&displayId, |overlay| {
         overlay.opacity = opacity;
     })?;
     
     // Emit opacity update to the specific overlay window
-    window
-        .emit("opacity-update", opacity)
+    window.emit("opacity-update", opacity)
         .map_err(|e| IpcError::from_error(IpcErrorCode::Unknown, &e))?;
     
     Ok(())

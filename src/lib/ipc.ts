@@ -63,11 +63,11 @@ export async function invoke(
   params?: Record<string, unknown>,
 ): Promise<unknown> {
   try {
-    // Convert parameters to snake_case for Rust
-    const snakeCaseParams = params ? camelToSnake(params) : undefined;
+    // Tauri v2 expects camelCase parameters
+    console.log(`Invoking ${IPC_COMMANDS[command]} with params:`, params);
 
     // Call the actual Tauri command
-    const result = await tauriInvoke(IPC_COMMANDS[command], snakeCaseParams);
+    const result = await tauriInvoke(IPC_COMMANDS[command], params);
 
     // TODO: Add response validation once we have response schemas
     return result;

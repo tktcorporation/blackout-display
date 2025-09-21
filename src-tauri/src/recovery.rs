@@ -87,9 +87,10 @@ pub fn cleanup_orphaned_states(app_handle: AppHandle) -> IpcResult<Vec<String>> 
 #[tauri::command]
 pub fn force_recreate_overlay(
     app_handle: AppHandle,
-    display_id: String,
+    #[allow(non_snake_case)]
+    displayId: String,
 ) -> IpcResult<()> {
-    let window_label = format!("overlay-{}", display_id);
+    let window_label = format!("overlay-{}", displayId);
     
     // Close existing window if it exists
     if let Some(window) = app_handle.get_webview_window(&window_label) {
@@ -103,8 +104,8 @@ pub fn force_recreate_overlay(
     
     // Remove old state
     let state = get_app_state(&app_handle);
-    state.remove_overlay_state(&display_id)?;
+    state.remove_overlay_state(&displayId)?;
     
     // Recreate the window
-    create_overlay_for_display(app_handle, display_id)
+    create_overlay_for_display(app_handle, displayId)
 }
