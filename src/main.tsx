@@ -16,6 +16,10 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import { installGlobalErrorHandlers } from "./utils/logger";
+
+// Install global error handlers for dev3000 integration
+installGlobalErrorHandlers();
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>

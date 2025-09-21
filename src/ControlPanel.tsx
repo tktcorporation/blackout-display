@@ -18,6 +18,7 @@
 import { useEffect, useState } from "react";
 import { DisplayCard } from "./components/DisplayCard";
 import { handleIpcError, invoke, listen } from "./lib/ipc";
+import { logger } from "./utils/logger";
 // Recovery functionality available but not currently used
 // import { verifyAndRecoverOverlays } from "./lib/recovery";
 import type { Display, DisplayState, IpcError } from "./types/ipc";
@@ -32,6 +33,7 @@ export function ControlPanel() {
   const [allBlackout, setAllBlackout] = useState(false);
 
   useEffect(() => {
+    logger.info("ControlPanel mounted, initializing...");
     // Load displays on mount
     loadDisplays();
 
@@ -39,7 +41,7 @@ export function ControlPanel() {
     // TODO: Re-enable after confirming basic functionality
     // verifyAndRecoverOverlays().then((recovered) => {
     //   if (recovered.length > 0) {
-    //     console.log("Recovered overlay windows:", recovered);
+    //     logger.info("Recovered overlay windows", { recovered });
     //   }
     // });
 
