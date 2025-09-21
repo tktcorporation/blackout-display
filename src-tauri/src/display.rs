@@ -16,6 +16,7 @@ pub struct Display {
     pub scale_factor: f64,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DisplayState {
     pub display_id: String,
