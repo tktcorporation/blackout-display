@@ -30,9 +30,13 @@ impl Display {
     ) -> Result<WebviewWindow, tauri::Error> {
         let window_label = format!("overlay-{}", self.id);
         
+        // Log display information for debugging
+        eprintln!("Creating overlay for display: {} at position ({}, {}) with size {}x{}", 
+            self.name, self.x, self.y, self.width, self.height);
+        
         let window = WebviewWindowBuilder::new(
             app_handle,
-            window_label,
+            window_label.clone(),
             WebviewUrl::App("index.html".into()),
         )
         .title(format!("Overlay - {}", self.name))
@@ -48,6 +52,8 @@ impl Display {
         .transparent(true)
         .accept_first_mouse(false)
         .build()?;
+        
+        eprintln!("Successfully created window: {}", window_label);
         
         // macOS-specific settings for transparency
         #[cfg(target_os = "macos")]
@@ -75,7 +81,7 @@ pub fn get_displays(app_handle: tauri::AppHandle) -> IpcResult<Vec<Display>> {
             let position = monitor.position();
             let size = monitor.size();
             
-            Display {
+            let display = Display {
                 id: format!("display-{}", index + 1),
                 name: monitor.name().map(|s| s.to_string()).unwrap_or_else(|| format!("Display {}", index + 1)),
                 x: position.x,
@@ -84,7 +90,12 @@ pub fn get_displays(app_handle: tauri::AppHandle) -> IpcResult<Vec<Display>> {
                 height: size.height,
                 is_primary: index == 0, // Simplified primary detection
                 scale_factor: monitor.scale_factor(),
-            }
+            };
+            
+            eprintln!("Detected display {}: {} at ({}, {}) size {}x{}", 
+                index + 1, display.name, display.x, display.y, display.width, display.height);
+            
+            display
         })
         .collect())
 }
@@ -188,6 +199,22 @@ pub fn toggle_overlay_visibility(
         window.set_ignore_cursor_events(true)
             .map_err(|e| IpcError::from_error(IpcErrorCode::Unknown, &e))?;
         
+        // Get the display to ensure window is on correct monitor
+        let displays = get_displays(app_handle.clone())?;
+        if let Some(display) = displays.iter().find(|d| d.id == displayId) {
+            // Re-set position before showing to ensure it's on the correct display
+            eprintln!("Positioning window {} to ({}, {})", window_label, display.x, display.y);
+            let _ = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition::new(
+                display.x,
+                display.y,
+            )));
+            // Also re-set size to ensure it covers the full display
+            let _ = window.set_size(tauri::Size::Physical(tauri::PhysicalSize::new(
+                display.width,
+                display.height,
+            )));
+        }
+        
         window.show()
     } else {
         window.hide()
@@ -259,8 +286,10 @@ pub fn set_overlay_opacity(
     })?;
     
     // Emit opacity update to the specific overlay window
+    eprintln!("Emitting opacity-update to {}: {}", window_label, opacity);
     window.emit("opacity-update", opacity)
         .map_err(|e| IpcError::from_error(IpcErrorCode::Unknown, &e))?;
     
+    eprintln!("Successfully sent opacity update");
     Ok(())
 }

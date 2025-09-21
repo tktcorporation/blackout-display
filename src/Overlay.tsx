@@ -39,6 +39,8 @@ export function Overlay() {
      * - Updates local opacity state
      * - Re-renders overlay with new opacity
      */
+    console.log(`[Overlay] Setting up opacity listener for display: ${displayId}`);
+    
     const unlisten = listen("opacity-update" as const, (event) => {
       // opacity-update now sends just the opacity value directly
       console.log("[Overlay] Received opacity-update event:", event);
@@ -53,12 +55,13 @@ export function Overlay() {
       setOpacity(opacityValue);
     });
 
-    // Display ID is set by Rust when creating the window
+    // Send a ready signal to backend to request current opacity
+    console.log(`[Overlay] Component mounted, ready to receive events`);
 
     return () => {
       unlisten.then((fn) => fn());
     };
-  }, []);
+  }, [displayId]);
 
   return (
     <>
