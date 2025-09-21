@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
+use crate::error::{IpcError, IpcErrorCode, IpcResult, IntoIpcResult};
+use crate::state::{get_app_state, OverlayState};
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Display {
     pub id: String,
@@ -57,10 +60,12 @@ impl Display {
 }
 
 #[tauri::command]
-pub fn get_displays(app_handle: tauri::AppHandle) -> Vec<Display> {
-    let monitors = app_handle.available_monitors().unwrap_or_default();
+pub fn get_displays(app_handle: tauri::AppHandle) -> IpcResult<Vec<Display>> {
+    let monitors = app_handle
+        .available_monitors()
+        .into_ipc_result(IpcErrorCode::Unknown)?;
     
-    monitors
+    Ok(monitors
         .into_iter()
         .enumerate()
         .map(|(index, monitor)| {
@@ -78,14 +83,14 @@ pub fn get_displays(app_handle: tauri::AppHandle) -> Vec<Display> {
                 scale_factor: monitor.scale_factor(),
             }
         })
-        .collect()
+        .collect())
 }
 
 #[tauri::command]
 pub fn create_overlay_for_display(
     app_handle: tauri::AppHandle,
     display_id: String,
-) -> Result<(), String> {
+) -> IpcResult<()> {
     let window_label = format!("overlay-{}", display_id);
     
     // Check if window already exists
@@ -93,23 +98,43 @@ pub fn create_overlay_for_display(
         return Ok(()); // Window already exists, return success
     }
     
-    let displays = get_displays(app_handle.clone());
+    let displays = get_displays(app_handle.clone())?;
     
-    if let Some(display) = displays.iter().find(|d| d.id == display_id) {
-        match display.create_overlay_window(&app_handle) {
-            Ok(window) => {
-                // Load the overlay page
-                let _ = window.eval(format!(
-                    "window.__DISPLAY_ID__ = '{}';",
-                    display_id
-                ));
-                Ok(())
-            }
-            Err(e) => Err(e.to_string()),
-        }
-    } else {
-        Err("Display not found".to_string())
-    }
+    let display = displays
+        .iter()
+        .find(|d| d.id == display_id)
+        .ok_or_else(|| {
+            IpcError::new(
+                IpcErrorCode::DisplayNotFound,
+                format!("Display '{}' not found", display_id),
+            )
+        })?;
+    
+    // Create the overlay window
+    let window = display.create_overlay_window(&app_handle).map_err(|e| {
+        IpcError::with_details(
+            IpcErrorCode::WindowCreateFailed,
+            format!("Failed to create overlay window for display '{}'", display_id),
+            serde_json::json!({ "display_id": display_id, "error": e.to_string() }),
+        )
+    })?;
+    
+    // Initialize display ID in the window
+    window
+        .eval(format!("window.__DISPLAY_ID__ = '{}';", display_id))
+        .map_err(|e| {
+            IpcError::new(
+                IpcErrorCode::Unknown,
+                format!("Failed to set display ID in window: {}", e),
+            )
+        })?;
+    
+    // Initialize state for the overlay
+    let state = get_app_state(&app_handle);
+    let overlay_state = OverlayState::new(display_id.clone());
+    state.set_overlay_state(display_id, overlay_state)?;
+    
+    Ok(())
 }
 
 #[tauri::command]
@@ -117,18 +142,51 @@ pub fn toggle_overlay_visibility(
     app_handle: tauri::AppHandle,
     display_id: String,
     visible: bool,
-) -> Result<(), String> {
+) -> IpcResult<()> {
     let window_label = format!("overlay-{}", display_id);
     
-    if let Some(window) = app_handle.get_webview_window(&window_label) {
-        if visible {
-            window.show().map_err(|e| e.to_string())?;
-        } else {
-            window.hide().map_err(|e| e.to_string())?;
-        }
-        Ok(())
+    // Verify window exists
+    let window = app_handle.get_webview_window(&window_label).ok_or_else(|| {
+        IpcError::new(
+            IpcErrorCode::DisplayNotFound,
+            format!("Overlay window not found for display '{}'", display_id),
+        )
+    })?;
+    
+    // Update state first
+    let state = get_app_state(&app_handle);
+    state.update_overlay_state(&display_id, |overlay| {
+        overlay.is_visible = visible;
+    })?;
+    
+    // Apply visibility change with error recovery
+    let visibility_result = if visible {
+        // When showing, ensure window is properly configured
+        window.set_ignore_cursor_events(true)
+            .map_err(|e| IpcError::from_error(IpcErrorCode::Unknown, &e))?;
+        
+        window.show()
     } else {
-        Err("Overlay window not found".to_string())
+        window.hide()
+    };
+    
+    // Handle visibility errors with recovery
+    match visibility_result {
+        Ok(_) => Ok(()),
+        Err(e) => {
+            // Try to recover by recreating the window if it failed
+            if visible {
+                // Log error and attempt recovery
+                eprintln!("Failed to show overlay window: {}", e);
+                
+                // Update state to reflect failure
+                let _ = state.update_overlay_state(&display_id, |overlay| {
+                    overlay.is_visible = false;
+                });
+            }
+            
+            Err(IpcError::from_error(IpcErrorCode::WindowCreateFailed, &e))
+        }
     }
 }
 
@@ -137,16 +195,35 @@ pub fn set_overlay_opacity(
     app_handle: tauri::AppHandle,
     display_id: String,
     opacity: f32,
-) -> Result<(), String> {
+) -> IpcResult<()> {
+    // Validate opacity range
+    if !(0.0..=1.0).contains(&opacity) {
+        return Err(IpcError::new(
+            IpcErrorCode::InvalidParameter,
+            format!("Opacity must be between 0.0 and 1.0, got: {}", opacity),
+        ));
+    }
+    
     let window_label = format!("overlay-{}", display_id);
     
-    if let Some(window) = app_handle.get_webview_window(&window_label) {
-        // Emit opacity update to the specific overlay window
-        window
-            .emit("opacity-update", opacity)
-            .map_err(|e| e.to_string())?;
-        Ok(())
-    } else {
-        Err("Overlay window not found".to_string())
-    }
+    // Verify window exists
+    let window = app_handle.get_webview_window(&window_label).ok_or_else(|| {
+        IpcError::new(
+            IpcErrorCode::DisplayNotFound,
+            format!("Overlay window not found for display '{}'", display_id),
+        )
+    })?;
+    
+    // Update state
+    let state = get_app_state(&app_handle);
+    state.update_overlay_state(&display_id, |overlay| {
+        overlay.opacity = opacity;
+    })?;
+    
+    // Emit opacity update to the specific overlay window
+    window
+        .emit("opacity-update", opacity)
+        .map_err(|e| IpcError::from_error(IpcErrorCode::Unknown, &e))?;
+    
+    Ok(())
 }

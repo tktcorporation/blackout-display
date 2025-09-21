@@ -1,11 +1,30 @@
-import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
-import { useEffect, useState } from "react";
+/**
+ * ControlPanel.tsx
+ *
+ * Purpose: Main control interface for managing multiple display blackout overlays
+ *
+ * This component:
+ * - Displays all available monitors with individual controls
+ * - Manages global blackout state across all displays
+ * - Handles keyboard shortcuts for quick access
+ * - Provides visual feedback for current overlay states
+ *
+ * Dependencies:
+ * - Uses type-safe IPC for backend communication
+ * - DisplayCard component for individual display controls
+ * - Global keyboard shortcut integration
+ */
+
+import { useCallback, useEffect, useState } from "react";
 import { DisplayCard } from "./components/DisplayCard";
-import type { Display, DisplayState } from "./types/display";
+import { handleIpcError, invoke, listen } from "./lib/ipc";
+import { verifyAndRecoverOverlays } from "./lib/recovery";
+import type { Display, DisplayState, IpcError } from "./types/ipc";
 
 export function ControlPanel() {
   const [displays, setDisplays] = useState<Display[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [displayStates, setDisplayStates] = useState<Map<string, DisplayState>>(
     new Map(),
   );
@@ -15,13 +34,20 @@ export function ControlPanel() {
     // Load displays on mount
     loadDisplays();
 
+    // Verify and recover any missing overlay windows on startup
+    verifyAndRecoverOverlays().then((recovered) => {
+      if (recovered.length > 0) {
+        console.log("Recovered overlay windows:", recovered);
+      }
+    });
+
     // Listen for global shortcut events
-    const unlisten1 = listen("toggle-all-displays", () => {
+    const unlisten1 = listen("toggle-all-displays" as const, () => {
       toggleAllDisplays();
     });
 
-    const unlisten2 = listen<number>("toggle-display", (event) => {
-      const displayIndex = event.payload - 1;
+    const unlisten2 = listen("toggle-display" as const, (displayId) => {
+      const displayIndex = displayId - 1;
       if (displays[displayIndex]) {
         toggleDisplay(displays[displayIndex].id);
       }
@@ -33,93 +59,184 @@ export function ControlPanel() {
     };
   }, [displays]);
 
+  /**
+   * Load available displays from the system
+   *
+   * Purpose: Initialize display list and create default states for each display
+   *
+   * Side Effects:
+   * - Updates displays state with system display information
+   * - Initializes display states with default values
+   * - Sets loading/error states appropriately
+   */
   const loadDisplays = async () => {
+    setLoading(true);
+    setError(null);
+
     try {
-      const loadedDisplays = await invoke<Display[]>("get_displays");
+      const loadedDisplays = (await invoke("GET_DISPLAYS")) as Display[];
       setDisplays(loadedDisplays);
 
       // Initialize display states
       const newStates = new Map<string, DisplayState>();
       for (const display of loadedDisplays) {
         newStates.set(display.id, {
-          display_id: display.id,
+          display,
           is_blackout: false,
           opacity: 50,
         });
       }
       setDisplayStates(newStates);
-    } catch (error) {
-      console.error("Failed to load displays:", error);
+    } catch (err) {
+      const errorMessage = handleIpcError(err as IpcError, {
+        DISPLAY_NOT_FOUND: () => "No displays found",
+        WINDOW_CREATE_FAILED: () => "Failed to access display information",
+        INVALID_PARAMETER: () => "Invalid display configuration",
+        UNKNOWN: (e) => e.message,
+      });
+      setError(errorMessage);
+      console.error("Failed to load displays:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const toggleDisplay = (displayId: string) => {
-    const state = displayStates.get(displayId);
-    if (state) {
-      const display = displays.find((d) => d.id === displayId);
-      if (display) {
+  /**
+   * Toggle blackout state for a specific display
+   *
+   * Purpose: Handle keyboard shortcut for individual display toggle
+   *
+   * @param displayId - ID of the display to toggle
+   *
+   * Side Effects:
+   * - Triggers the DisplayCard's toggle button programmatically
+   */
+  const toggleDisplay = useCallback(
+    (displayId: string) => {
+      const state = displayStates.get(displayId);
+      if (state) {
         const card = document.querySelector(`[data-display-id="${displayId}"]`);
         if (card) {
-          const button = card.querySelector("button");
+          const button = card.querySelector<HTMLButtonElement>(
+            "button[data-toggle]",
+          );
           button?.click();
         }
       }
-    }
-  };
+    },
+    [displayStates],
+  );
 
-  const toggleAllDisplays = async () => {
+  /**
+   * Toggle blackout state for all displays simultaneously
+   *
+   * Purpose: Provide quick way to enable/disable all overlays at once
+   *
+   * Side Effects:
+   * - Updates allBlackout state
+   * - Toggles each display that doesn't match the new state
+   * - Handles errors gracefully without stopping the process
+   */
+  const toggleAllDisplays = useCallback(async () => {
     const newBlackoutState = !allBlackout;
     setAllBlackout(newBlackoutState);
 
-    for (const display of displays) {
+    // Process all displays in parallel for better performance
+    const promises = displays.map(async (display) => {
       const state = displayStates.get(display.id);
       if (state && state.is_blackout !== newBlackoutState) {
-        await toggleDisplayBlackout(display, state, newBlackoutState);
+        try {
+          await toggleDisplayBlackout(display, state, newBlackoutState);
+        } catch (error) {
+          console.error(`Failed to toggle display ${display.id}:`, error);
+        }
       }
-    }
-  };
+    });
 
+    await Promise.allSettled(promises);
+  }, [allBlackout, displays, displayStates]);
+
+  /**
+   * Toggle blackout overlay for a specific display
+   *
+   * Purpose: Manage the lifecycle of overlay windows with proper error handling
+   *
+   * @param display - Display information
+   * @param state - Current display state
+   * @param blackout - Whether to show (true) or hide (false) the overlay
+   *
+   * Side Effects:
+   * - Updates local state optimistically for better UX
+   * - Creates overlay window if needed
+   * - Sets opacity after window creation
+   * - Reverts state on error
+   */
   const toggleDisplayBlackout = async (
     display: Display,
     state: DisplayState,
     blackout: boolean,
   ) => {
     try {
-      // Update state immediately to enable/disable controls
+      // Update state immediately for responsive UI
       handleStateChange({
         ...state,
         is_blackout: blackout,
       });
 
       if (blackout) {
-        await invoke("create_overlay_for_display", { displayId: display.id });
+        await invoke("CREATE_OVERLAY_FOR_DISPLAY", { displayId: display.id });
         // Set opacity right after creating overlay
-        await invoke("set_overlay_opacity", {
+        await invoke("SET_OVERLAY_OPACITY", {
           displayId: display.id,
           opacity: state.opacity / 100,
         });
       }
-      await invoke("toggle_overlay_visibility", {
+
+      await invoke("TOGGLE_OVERLAY_VISIBILITY", {
         displayId: display.id,
         visible: blackout,
       });
-    } catch (error) {
-      console.error("Failed to toggle display blackout:", error);
+    } catch (err) {
+      const errorMessage = handleIpcError(err as IpcError, {
+        DISPLAY_NOT_FOUND: () => `Display ${display.id} not found`,
+        WINDOW_CREATE_FAILED: () =>
+          `Failed to create overlay for display ${display.name || display.id}`,
+        INVALID_PARAMETER: () => "Invalid display parameters",
+        UNKNOWN: (e) => e.message,
+      });
+
+      console.error("Failed to toggle display blackout:", errorMessage);
+
       // Revert state on error
       handleStateChange({
         ...state,
         is_blackout: !blackout,
       });
+
+      // Show error to user (could be improved with a toast notification)
+      setError(errorMessage);
+      setTimeout(() => setError(null), 5000);
     }
   };
 
-  const handleStateChange = (newState: DisplayState) => {
+  /**
+   * Update state for a specific display
+   *
+   * Purpose: Centralized state update to ensure consistency
+   *
+   * @param newState - New state for the display
+   *
+   * Side Effects:
+   * - Updates displayStates map
+   * - Triggers re-render of affected DisplayCard
+   */
+  const handleStateChange = useCallback((newState: DisplayState) => {
     setDisplayStates((prev) => {
       const newMap = new Map(prev);
-      newMap.set(newState.display_id, newState);
+      newMap.set(newState.display.id, newState);
       return newMap;
     });
-  };
+  }, []);
 
   return (
     <div
@@ -160,23 +277,50 @@ export function ControlPanel() {
       </header>
 
       <main style={{ flex: 1, padding: "16px", overflowY: "auto" }}>
-        {displays.map((display) => {
-          const state = displayStates.get(display.id) || {
-            display_id: display.id,
-            is_blackout: false,
-            opacity: 50,
-          };
+        {error && (
+          <div
+            style={{
+              padding: "12px",
+              marginBottom: "16px",
+              backgroundColor: "#ff444455",
+              borderRadius: "4px",
+              border: "1px solid #ff4444",
+            }}
+          >
+            ⚠️ {error}
+          </div>
+        )}
 
-          return (
-            <div key={display.id} data-display-id={display.id}>
-              <DisplayCard
-                display={display}
-                state={state}
-                onStateChange={handleStateChange}
-              />
-            </div>
-          );
-        })}
+        {loading && (
+          <div style={{ textAlign: "center", padding: "40px", color: "#666" }}>
+            Loading displays...
+          </div>
+        )}
+
+        {!loading && displays.length === 0 && (
+          <div style={{ textAlign: "center", padding: "40px", color: "#666" }}>
+            No displays detected
+          </div>
+        )}
+
+        {!loading &&
+          displays.map((display) => {
+            const state = displayStates.get(display.id) || {
+              display,
+              is_blackout: false,
+              opacity: 50,
+            };
+
+            return (
+              <div key={display.id} data-display-id={display.id}>
+                <DisplayCard
+                  display={display}
+                  state={state}
+                  onStateChange={handleStateChange}
+                />
+              </div>
+            );
+          })}
       </main>
 
       <footer
