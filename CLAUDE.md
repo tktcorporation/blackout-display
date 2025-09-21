@@ -66,3 +66,64 @@ Uses Nix flake for reproducible development environment with:
 - Rust toolchain
 - Node.js
 - Platform-specific dependencies (macOS frameworks)
+
+## Code Documentation Requirements
+
+**IMPORTANT**: All files and functions MUST include proper documentation explaining their purpose and intent.
+
+### File-level Documentation
+Every file should start with a comment block that explains:
+- **Purpose**: Why this file exists and what problem it solves
+- **Responsibilities**: What this file is responsible for
+- **Dependencies**: Key dependencies or relationships with other parts of the system
+
+Example:
+```typescript
+/**
+ * ControlPanel.tsx
+ * 
+ * Purpose: Provides a user interface for controlling multiple display overlays
+ * 
+ * This component allows users to:
+ * - View all available displays
+ * - Toggle individual display overlays on/off
+ * - Adjust opacity for each display independently
+ * - See real-time status of each display
+ * 
+ * Dependencies:
+ * - Communicates with Tauri backend via IPC events
+ * - Uses DisplayCard component for individual display controls
+ */
+```
+
+### Function-level Documentation
+Every function should have a comment block that includes:
+- **Purpose**: What the function does and why it exists
+- **Parameters**: Description of each parameter and its expected values
+- **Returns**: What the function returns and under what conditions
+- **Side Effects**: Any side effects or state changes
+
+Example:
+```typescript
+/**
+ * Toggles the overlay visibility for a specific display
+ * 
+ * Purpose: Allows users to show/hide the blackout overlay on individual displays
+ * without affecting other displays
+ * 
+ * @param displayId - Unique identifier of the display to toggle
+ * @param visible - Whether to show (true) or hide (false) the overlay
+ * @returns Promise that resolves when the backend has processed the command
+ * 
+ * Side Effects:
+ * - Updates local state to reflect the new visibility status
+ * - Sends IPC event to Tauri backend to update the actual overlay window
+ */
+```
+
+### Why This Matters
+Clear documentation ensures:
+- Future developers (including yourself) understand the codebase quickly
+- The intent behind design decisions is preserved
+- Dependencies and relationships between components are explicit
+- Maintenance and refactoring become easier
