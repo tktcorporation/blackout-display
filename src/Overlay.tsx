@@ -15,6 +15,7 @@
 
 import { useEffect, useState } from "react";
 import { listen } from "./lib/ipc";
+import { listen as tauriListen } from "@tauri-apps/api/event";
 
 // Get display ID from global variable set by Rust
 declare global {
@@ -27,7 +28,7 @@ export function Overlay() {
   const [opacity, setOpacity] = useState(0.8); // Default to 80% opacity
   const displayId = typeof window !== "undefined" ? window.__DISPLAY_ID__ || "unknown" : "unknown";
   
-  console.log(`[Overlay] Initial render - displayId: ${displayId}, opacity: ${opacity}`);
+  console.log(`[Overlay] Render - displayId: ${displayId}, opacity: ${opacity}, time: ${new Date().toLocaleTimeString()}`);
 
   useEffect(() => {
     /**
@@ -41,25 +42,38 @@ export function Overlay() {
      */
     console.log(`[Overlay] Setting up opacity listener for display: ${displayId}`);
     
-    const unlisten = listen("opacity-update" as const, (event) => {
-      // opacity-update now sends just the opacity value directly
-      console.log("[Overlay] Received opacity-update event:", event);
-      console.log("[Overlay] Event payload:", (event as any).payload);
+    // Try both IPC system and direct Tauri listener for debugging
+    const unlisten1 = listen("opacity-update" as const, (opacityValue) => {
+      // The IPC system should provide the validated opacity value directly
+      console.log("[Overlay IPC] Received opacity-update with validated value:", opacityValue);
       
-      // Try to get the opacity value from different possible locations
-      const opacityValue = typeof event === 'number' 
-        ? event 
-        : (event as any).payload;
-        
-      console.log("[Overlay] Setting opacity to:", opacityValue);
-      setOpacity(opacityValue);
+      if (typeof opacityValue === 'number' && opacityValue >= 0 && opacityValue <= 1) {
+        console.log("[Overlay IPC] Setting opacity to:", opacityValue);
+        setOpacity(opacityValue);
+      } else {
+        console.error("[Overlay IPC] Invalid opacity value received:", opacityValue);
+      }
+    });
+
+    // Also listen directly with Tauri to bypass IPC validation
+    const unlisten2 = tauriListen("opacity-update", (event) => {
+      console.log("[Overlay Direct] Received raw event:", event);
+      const payload = event.payload;
+      
+      if (typeof payload === 'number' && payload >= 0 && payload <= 1) {
+        console.log("[Overlay Direct] Setting opacity to:", payload);
+        setOpacity(payload);
+      } else {
+        console.error("[Overlay Direct] Invalid payload:", payload);
+      }
     });
 
     // Send a ready signal to backend to request current opacity
     console.log(`[Overlay] Component mounted, ready to receive events`);
 
     return () => {
-      unlisten.then((fn) => fn());
+      unlisten1.then((fn) => fn());
+      unlisten2.then((fn) => fn());
     };
   }, [displayId]);
 
