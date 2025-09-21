@@ -33,13 +33,15 @@ impl Display {
         let window = WebviewWindowBuilder::new(
             app_handle,
             window_label,
-            WebviewUrl::default(),
+            WebviewUrl::App("index.html".into()),
         )
         .title(format!("Overlay - {}", self.name))
         .position(self.x as f64, self.y as f64)
         .inner_size(self.width as f64, self.height as f64)
-        .fullscreen(true)
+        .fullscreen(false)
+        .decorations(false)
         .always_on_top(true)
+        .resizable(false)
         .skip_taskbar(true)
         .focused(false)
         .visible(false)
@@ -113,11 +115,21 @@ pub fn create_overlay_for_display(
         })?;
     
     // Create overlay window
-    let _window = display.create_overlay_window(&app_handle)
+    let window = display.create_overlay_window(&app_handle)
         .map_err(|e| {
             IpcError::new(
                 IpcErrorCode::WindowCreateFailed,
                 format!("Failed to create overlay window: {}", e),
+            )
+        })?;
+    
+    // Initialize display ID in the window
+    window
+        .eval(&format!("window.__DISPLAY_ID__ = '{}';", displayId))
+        .map_err(|e| {
+            IpcError::new(
+                IpcErrorCode::Unknown,
+                format!("Failed to set display ID in window: {}", e),
             )
         })?;
     
