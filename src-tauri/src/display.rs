@@ -143,10 +143,10 @@ pub fn create_overlay_for_display(
     };
     
     window
-        .eval(&format!(
+        .eval(format!(
             "window.__DISPLAY_ID__ = '{}'; window.__INITIAL_OPACITY__ = {};",
             displayId, initial_opacity
-        ))
+        ).as_str())
         .map_err(|e| {
             IpcError::new(
                 IpcErrorCode::Unknown,

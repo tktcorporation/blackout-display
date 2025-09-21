@@ -36,6 +36,7 @@ impl IpcError {
     }
 
     /// Create a new IpcError with details
+    #[allow(dead_code)]
     pub fn with_details(
         code: IpcErrorCode,
         message: impl Into<String>,
