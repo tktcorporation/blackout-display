@@ -134,13 +134,23 @@ pub fn create_overlay_for_display(
             )
         })?;
     
-    // Initialize display ID in the window
+    // Initialize display ID and opacity in the window
+    let state = get_app_state(&app_handle);
+    let initial_opacity = if let Some(overlay_state) = state.get_overlay_state(&displayId) {
+        overlay_state.opacity
+    } else {
+        0.8
+    };
+    
     window
-        .eval(&format!("window.__DISPLAY_ID__ = '{}';", displayId))
+        .eval(&format!(
+            "window.__DISPLAY_ID__ = '{}'; window.__INITIAL_OPACITY__ = {};",
+            displayId, initial_opacity
+        ))
         .map_err(|e| {
             IpcError::new(
                 IpcErrorCode::Unknown,
-                format!("Failed to set display ID in window: {}", e),
+                format!("Failed to set display ID and opacity in window: {}", e),
             )
         })?;
     
@@ -287,9 +297,37 @@ pub fn set_overlay_opacity(
     
     // Emit opacity update to the specific overlay window
     eprintln!("Emitting opacity-update to {}: {}", window_label, opacity);
-    window.emit("opacity-update", opacity)
-        .map_err(|e| IpcError::from_error(IpcErrorCode::Unknown, &e))?;
     
-    eprintln!("Successfully sent opacity update");
+    // Try multiple methods to update opacity
+    // Method 1: Normal event emission
+    let emit_result = window.emit("opacity-update", opacity);
+    match emit_result {
+        Ok(_) => eprintln!("Successfully sent opacity update via emit"),
+        Err(e) => eprintln!("Failed to emit opacity update: {}", e),
+    }
+    
+    // Method 2: Try direct JavaScript evaluation as fallback
+    let js_code = format!(
+        r#"
+        if (window.updateOpacity) {{
+            window.updateOpacity({});
+        }} else {{
+            console.error('[Rust] updateOpacity function not found');
+            // Try to directly update the overlay div
+            const overlay = document.querySelector('div[style*="rgba(0, 0, 0"]');
+            if (overlay) {{
+                overlay.style.backgroundColor = 'rgba(0, 0, 0, {})';
+                console.log('[Rust] Updated overlay directly to opacity {}');
+            }}
+        }}
+        "#,
+        opacity, opacity, opacity
+    );
+    
+    if let Err(e) = window.eval(&js_code) {
+        eprintln!("Failed to update opacity via eval: {}", e);
+    }
+    
+    eprintln!("Completed opacity update attempts");
     Ok(())
 }
