@@ -35,11 +35,12 @@ export function ControlPanel() {
     loadDisplays();
 
     // Verify and recover any missing overlay windows on startup
-    verifyAndRecoverOverlays().then((recovered) => {
-      if (recovered.length > 0) {
-        console.log("Recovered overlay windows:", recovered);
-      }
-    });
+    // TODO: Re-enable after confirming basic functionality
+    // verifyAndRecoverOverlays().then((recovered) => {
+    //   if (recovered.length > 0) {
+    //     console.log("Recovered overlay windows:", recovered);
+    //   }
+    // });
 
     // Listen for global shortcut events
     const unlisten1 = listen("toggle-all-displays" as const, () => {
@@ -74,7 +75,9 @@ export function ControlPanel() {
     setError(null);
 
     try {
+      console.log("Invoking GET_DISPLAYS command...");
       const loadedDisplays = (await invoke("GET_DISPLAYS")) as Display[];
+      console.log("Loaded displays:", loadedDisplays);
       setDisplays(loadedDisplays);
 
       // Initialize display states
@@ -88,6 +91,7 @@ export function ControlPanel() {
       }
       setDisplayStates(newStates);
     } catch (err) {
+      console.error("Error details:", err);
       const errorMessage = handleIpcError(err as IpcError, {
         DISPLAY_NOT_FOUND: () => "No displays found",
         WINDOW_CREATE_FAILED: () => "Failed to access display information",
@@ -95,7 +99,7 @@ export function ControlPanel() {
         UNKNOWN: (e) => e.message,
       });
       setError(errorMessage);
-      console.error("Failed to load displays:", err);
+      console.error("Failed to load displays:", errorMessage);
     } finally {
       setLoading(false);
     }
@@ -113,6 +117,7 @@ export function ControlPanel() {
    */
   const toggleDisplay = useCallback(
     (displayId: string) => {
+      console.log("Toggle display:", displayId);
       const state = displayStates.get(displayId);
       if (state) {
         const card = document.querySelector(`[data-display-id="${displayId}"]`);

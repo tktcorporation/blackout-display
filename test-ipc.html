@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>IPC Test</title>
+</head>
+<body>
+    <h1>IPC Test</h1>
+    <button onclick="testGetDisplays()">Test get_displays</button>
+    <div id="result"></div>
+    
+    <script>
+        async function testGetDisplays() {
+            const resultDiv = document.getElementById('result');
+            try {
+                resultDiv.textContent = 'Calling get_displays...';
+                const result = await window.__TAURI__.core.invoke('get_displays');
+                resultDiv.textContent = 'Success: ' + JSON.stringify(result, null, 2);
+            } catch (error) {
+                resultDiv.textContent = 'Error: ' + JSON.stringify(error, null, 2);
+            }
+        }
+    </script>
+</body>
+</html>
