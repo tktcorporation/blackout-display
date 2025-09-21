@@ -120,9 +120,12 @@ export const DisplayCard: React.FC<DisplayCardProps> = ({
         opacity,
       });
 
+      const normalizedOpacity = opacity / 100;
+      console.log(`[DisplayCard] Sending opacity update: displayId=${display.id}, opacity=${opacity}, normalized=${normalizedOpacity}`);
+      
       await invoke("SET_OVERLAY_OPACITY", {
         displayId: display.id,
-        opacity: opacity / 100,
+        opacity: normalizedOpacity,
       });
     } catch (err) {
       const errorMessage = handleIpcError(err as IpcError, {

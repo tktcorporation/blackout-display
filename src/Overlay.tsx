@@ -24,9 +24,10 @@ declare global {
 }
 
 export function Overlay() {
-  const [opacity, setOpacity] = useState(0.5);
-  // Display ID is available from window.__DISPLAY_ID__ if needed
-  // const displayId = typeof window !== "undefined" ? window.__DISPLAY_ID__ || null : null;
+  const [opacity, setOpacity] = useState(0.8); // Default to 80% opacity
+  const displayId = typeof window !== "undefined" ? window.__DISPLAY_ID__ || "unknown" : "unknown";
+  
+  console.log(`[Overlay] Initial render - displayId: ${displayId}, opacity: ${opacity}`);
 
   useEffect(() => {
     /**
@@ -38,9 +39,17 @@ export function Overlay() {
      * - Updates local opacity state
      * - Re-renders overlay with new opacity
      */
-    const unlisten = listen("opacity-update" as const, (opacityValue) => {
+    const unlisten = listen("opacity-update" as const, (event) => {
       // opacity-update now sends just the opacity value directly
-      console.log("Received opacity update:", opacityValue);
+      console.log("[Overlay] Received opacity-update event:", event);
+      console.log("[Overlay] Event payload:", (event as any).payload);
+      
+      // Try to get the opacity value from different possible locations
+      const opacityValue = typeof event === 'number' 
+        ? event 
+        : (event as any).payload;
+        
+      console.log("[Overlay] Setting opacity to:", opacityValue);
       setOpacity(opacityValue);
     });
 
@@ -52,19 +61,40 @@ export function Overlay() {
   }, []);
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        width: "100vw",
-        height: "100vh",
-        backgroundColor: `rgba(0, 0, 0, ${opacity})`,
-        cursor: "default",
-        userSelect: "none",
-        pointerEvents: "none",
-        zIndex: 9999,
-      }}
-    />
+    <>
+      <div
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100vw",
+          height: "100vh",
+          backgroundColor: `rgba(0, 0, 0, ${opacity})`,
+          cursor: "default",
+          userSelect: "none",
+          pointerEvents: "none",
+          zIndex: 9999,
+        }}
+      />
+      {/* Debug info - remove in production */}
+      <div
+        style={{
+          position: "fixed",
+          top: 10,
+          left: 10,
+          backgroundColor: "white",
+          padding: "10px",
+          borderRadius: "5px",
+          fontSize: "12px",
+          fontFamily: "monospace",
+          zIndex: 10000,
+          pointerEvents: "none",
+        }}
+      >
+        <div>Display: {displayId}</div>
+        <div>Opacity: {opacity.toFixed(2)}</div>
+        <div>BG: rgba(0, 0, 0, {opacity})</div>
+      </div>
+    </>
   );
 }

@@ -19,7 +19,7 @@ impl OverlayState {
         Self {
             display_id,
             is_visible: false,
-            opacity: 1.0,
+            opacity: 0.8,  // Default to 80% opacity
             is_click_through: true,
         }
     }

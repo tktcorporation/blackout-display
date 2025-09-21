@@ -86,15 +86,20 @@ export async function listen<T extends keyof typeof IpcEventPayloads>(
   handler: (payload: z.infer<(typeof IpcEventPayloads)[T]>) => void,
 ): Promise<UnlistenFn> {
   return tauriListen(eventName, (event: TauriEvent<unknown>) => {
+    console.log(`[IPC] Received event ${eventName}:`, event);
+    console.log(`[IPC] Event payload:`, event.payload);
+    
     // Validate the event payload
     const schema = IpcEventPayloads[eventName];
     const parsed = schema.safeParse(event.payload);
 
     if (!parsed.success) {
       console.error(`Invalid payload for event ${eventName}:`, parsed.error);
+      console.error(`Raw payload was:`, event.payload);
       return;
     }
 
+    console.log(`[IPC] Validated payload:`, parsed.data);
     // Call handler with validated payload
     handler(parsed.data as z.infer<(typeof IpcEventPayloads)[T]>);
   });
