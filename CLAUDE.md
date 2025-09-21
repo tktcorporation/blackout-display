@@ -78,6 +78,79 @@ Uses Nix flake for reproducible development environment with:
 - Node.js
 - Platform-specific dependencies (macOS frameworks)
 
+## Debugging with dev3000
+
+This project is configured with [dev3000](https://github.com/vercel-labs/dev3000) for enhanced AI-assisted debugging.
+
+### Basic Usage
+1. Start dev3000 log collector: `pnpm dev:debug`
+2. In another terminal, start Tauri: `pnpm tauri dev`
+3. Logs are available at `/tmp/d3k.log`
+
+### MCP Integration
+dev3000 includes an MCP (Model Context Protocol) server that allows Claude Code to directly:
+- Analyze errors and debug issues
+- Execute browser actions for testing
+- Monitor application health
+
+The MCP server is configured in `.mcp.json` and runs at `http://localhost:3684/api/mcp/mcp`.
+
+To add the MCP server to Claude Code:
+```bash
+claude mcp add --transport http --scope project dev3000 http://localhost:3684/api/mcp/mcp
+```
+
+### Using dev3000 MCP Tools in Claude Code
+
+Once dev3000 is running (`pnpm dev:debug`), you can use these MCP tools:
+
+#### 1. Debug My App (`mcp__dev3000__debug_my_app`)
+Comprehensive debugging tool that finds and analyzes all issues in your application.
+
+**Available modes:**
+- `snapshot`: Immediate analysis of current state
+- `bisect`: Compare before/after states during user testing
+- `monitor`: Continuous health monitoring
+
+**Example usage:**
+```
+# Get immediate comprehensive analysis
+Use mcp__dev3000__debug_my_app with mode: "snapshot"
+
+# Debug issues that occurred in the last 5 minutes
+Use mcp__dev3000__debug_my_app with mode: "snapshot", timeRangeMinutes: 5
+
+# Focus on specific areas
+Use mcp__dev3000__debug_my_app with mode: "snapshot", focusArea: "runtime"
+```
+
+#### 2. Execute Browser Action (`mcp__dev3000__execute_browser_action`)
+Test user workflows and reproduce issues by automating browser interactions.
+
+**Available actions:**
+- `click`: Click buttons/links (requires x,y coordinates)
+- `navigate`: Go to URLs
+- `scroll`: Scroll pages
+- `type`: Type text in forms
+- `evaluate`: Read page state with JavaScript
+
+**Example usage:**
+```
+# Navigate to a URL
+Use mcp__dev3000__execute_browser_action with action: "navigate", params: {url: "http://localhost:1420"}
+
+# Click at specific coordinates
+Use mcp__dev3000__execute_browser_action with action: "click", params: {x: 100, y: 200}
+
+# Type text
+Use mcp__dev3000__execute_browser_action with action: "type", params: {text: "Hello World"}
+```
+
+**Note:** dev3000 automatically captures screenshots during interactions, so you don't need to manually take screenshots.
+
+### Custom Logger
+The project includes a custom logger (`src/utils/logger.ts`) that automatically sends frontend logs to dev3000.
+
 ## Code Documentation Requirements
 
 **IMPORTANT**: All files and functions MUST include proper documentation explaining their purpose and intent.
