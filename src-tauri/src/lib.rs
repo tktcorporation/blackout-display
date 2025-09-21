@@ -44,6 +44,8 @@ pub fn run() {
                 
                 // Show main control window after setup
                 if let Some(window) = app.get_webview_window("main") {
+                    // Ensure main window accepts cursor events (not click-through)
+                    let _ = window.set_ignore_cursor_events(false);
                     let _ = window.show();
                 }
             }

@@ -85,27 +85,31 @@ export function ControlPanel() {
     blackout: boolean,
   ) => {
     try {
-      if (blackout) {
-        await invoke("create_overlay_for_display", { displayId: display.id });
-      }
-      await invoke("toggle_overlay_visibility", {
-        displayId: display.id,
-        visible: blackout,
+      // Update state immediately to enable/disable controls
+      handleStateChange({
+        ...state,
+        is_blackout: blackout,
       });
 
       if (blackout) {
+        await invoke("create_overlay_for_display", { displayId: display.id });
+        // Set opacity right after creating overlay
         await invoke("set_overlay_opacity", {
           displayId: display.id,
           opacity: state.opacity / 100,
         });
       }
-
-      handleStateChange({
-        ...state,
-        is_blackout: blackout,
+      await invoke("toggle_overlay_visibility", {
+        displayId: display.id,
+        visible: blackout,
       });
     } catch (error) {
       console.error("Failed to toggle display blackout:", error);
+      // Revert state on error
+      handleStateChange({
+        ...state,
+        is_blackout: !blackout,
+      });
     }
   };
 

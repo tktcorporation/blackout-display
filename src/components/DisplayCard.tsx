@@ -17,20 +17,31 @@ export const DisplayCard: React.FC<DisplayCardProps> = ({
     const newState = !state.is_blackout;
 
     try {
+      // Update state immediately to enable/disable controls
+      onStateChange({
+        ...state,
+        is_blackout: newState,
+      });
+
       if (newState) {
         await invoke("create_overlay_for_display", { displayId: display.id });
+        // Set initial opacity when creating overlay
+        await invoke("set_overlay_opacity", {
+          displayId: display.id,
+          opacity: state.opacity / 100,
+        });
       }
       await invoke("toggle_overlay_visibility", {
         displayId: display.id,
         visible: newState,
       });
-
-      onStateChange({
-        ...state,
-        is_blackout: newState,
-      });
     } catch (error) {
       console.error("Failed to toggle blackout:", error);
+      // Revert state on error
+      onStateChange({
+        ...state,
+        is_blackout: !newState,
+      });
     }
   };
 
