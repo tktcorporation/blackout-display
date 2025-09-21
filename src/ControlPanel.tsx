@@ -180,17 +180,28 @@ export function ControlPanel() {
 
       if (blackout) {
         await invoke("CREATE_OVERLAY_FOR_DISPLAY", { displayId: display.id });
-        // Set opacity right after creating overlay
+
+        // Toggle visibility first to ensure window is shown
+        await invoke("TOGGLE_OVERLAY_VISIBILITY", {
+          displayId: display.id,
+          visible: blackout,
+        });
+
+        // Add a small delay to ensure the window is ready before setting opacity
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        // Then set initial opacity
         await invoke("SET_OVERLAY_OPACITY", {
           displayId: display.id,
           opacity: state.opacity / 100,
         });
+      } else {
+        // When hiding, just toggle visibility
+        await invoke("TOGGLE_OVERLAY_VISIBILITY", {
+          displayId: display.id,
+          visible: blackout,
+        });
       }
-
-      await invoke("TOGGLE_OVERLAY_VISIBILITY", {
-        displayId: display.id,
-        visible: blackout,
-      });
     } catch (err) {
       const errorMessage = handleIpcError(err as IpcError, {
         DISPLAY_NOT_FOUND: () => `Display ${display.id} not found`,

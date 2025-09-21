@@ -15,7 +15,7 @@
  */
 
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { ControlPanel } from "./ControlPanel";
 import { Overlay } from "./Overlay";
 import "./App.css";
@@ -24,25 +24,9 @@ function App() {
   const windowRef = useRef(getCurrentWebviewWindow());
   const isOverlay = windowRef.current.label.startsWith("overlay-");
 
-  useEffect(() => {
-    /**
-     * Show the window after app loads
-     *
-     * Purpose: Prevent white flash by showing window only after React renders
-     *
-     * Side Effects:
-     * - Makes the window visible to the user
-     */
-    const showWindow = async () => {
-      try {
-        await windowRef.current.show();
-      } catch (error) {
-        console.error("Failed to show window:", error);
-      }
-    };
-
-    showWindow();
-  }, []);
+  // Note: Window visibility is managed by the backend
+  // - Main window is shown in src-tauri/src/lib.rs after setup
+  // - Overlay windows are shown/hidden via IPC commands
 
   // Render different components based on window type
   return isOverlay ? <Overlay /> : <ControlPanel />;
