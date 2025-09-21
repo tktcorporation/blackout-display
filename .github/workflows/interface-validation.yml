@@ -77,21 +77,21 @@ jobs:
         node-version: '20'
         cache: 'pnpm'
     
-    - name: Install dependencies
-      run: pnpm install
-    
     - name: Install Linux dependencies
       if: matrix.platform == 'ubuntu-latest'
       run: |
         sudo apt-get update
         sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev
-    
+
+    - name: Install dependencies
+      run: pnpm install
+
     - name: Run TypeScript type checking
       run: pnpm typecheck
-    
+
     - name: Run linting
       run: pnpm lint src/
-    
+
     - name: Run Rust linting
       run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
     
