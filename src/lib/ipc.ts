@@ -72,8 +72,6 @@ export async function invoke(
     // TODO: Add response validation once we have response schemas
     return result;
   } catch (error) {
-    console.error("Raw IPC error:", error);
-    
     // Try to parse as IpcError
     const parsedError = IpcErrorSchema.safeParse(error);
     if (parsedError.success) {

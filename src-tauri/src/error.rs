@@ -88,3 +88,4 @@ impl From<tauri::Error> for IpcError {
         }
     }
 }
+

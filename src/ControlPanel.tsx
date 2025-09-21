@@ -47,18 +47,17 @@ export function ControlPanel() {
       toggleAllDisplays();
     });
 
-    const unlisten2 = listen("toggle-display" as const, (displayId) => {
-      const displayIndex = displayId - 1;
-      if (displays[displayIndex]) {
-        toggleDisplay(displays[displayIndex].id);
-      }
+    const unlisten2 = listen("toggle-display" as const, (displayNumber) => {
+      // displayNumber is 1-based (1-4 for keyboard shortcuts)
+      const displayId = `display-${displayNumber}`;
+      toggleDisplay(displayId);
     });
 
     return () => {
       unlisten1.then((fn) => fn());
       unlisten2.then((fn) => fn());
     };
-  }, [displays]);
+  }, []); // Empty dependency array - only run once on mount
 
   /**
    * Load available displays from the system
@@ -75,9 +74,7 @@ export function ControlPanel() {
     setError(null);
 
     try {
-      console.log("Invoking GET_DISPLAYS command...");
       const loadedDisplays = (await invoke("GET_DISPLAYS")) as Display[];
-      console.log("Loaded displays:", loadedDisplays);
       setDisplays(loadedDisplays);
 
       // Initialize display states
@@ -91,7 +88,6 @@ export function ControlPanel() {
       }
       setDisplayStates(newStates);
     } catch (err) {
-      console.error("Error details:", err);
       const errorMessage = handleIpcError(err as IpcError, {
         DISPLAY_NOT_FOUND: () => "No displays found",
         WINDOW_CREATE_FAILED: () => "Failed to access display information",
@@ -115,22 +111,15 @@ export function ControlPanel() {
    * Side Effects:
    * - Triggers the DisplayCard's toggle button programmatically
    */
-  const toggleDisplay = useCallback(
-    (displayId: string) => {
-      console.log("Toggle display:", displayId);
-      const state = displayStates.get(displayId);
-      if (state) {
-        const card = document.querySelector(`[data-display-id="${displayId}"]`);
-        if (card) {
-          const button = card.querySelector<HTMLButtonElement>(
-            "button[data-toggle]",
-          );
-          button?.click();
-        }
-      }
-    },
-    [displayStates],
-  );
+  const toggleDisplay = (displayId: string) => {
+    const card = document.querySelector(`[data-display-id="${displayId}"]`);
+    if (card) {
+      const button = card.querySelector<HTMLButtonElement>(
+        "button[data-toggle]",
+      );
+      button?.click();
+    }
+  };
 
   /**
    * Toggle blackout state for all displays simultaneously
@@ -142,7 +131,7 @@ export function ControlPanel() {
    * - Toggles each display that doesn't match the new state
    * - Handles errors gracefully without stopping the process
    */
-  const toggleAllDisplays = useCallback(async () => {
+  const toggleAllDisplays = async () => {
     const newBlackoutState = !allBlackout;
     setAllBlackout(newBlackoutState);
 
@@ -159,7 +148,7 @@ export function ControlPanel() {
     });
 
     await Promise.allSettled(promises);
-  }, [allBlackout, displays, displayStates]);
+  };
 
   /**
    * Toggle blackout overlay for a specific display
@@ -235,13 +224,13 @@ export function ControlPanel() {
    * - Updates displayStates map
    * - Triggers re-render of affected DisplayCard
    */
-  const handleStateChange = useCallback((newState: DisplayState) => {
+  const handleStateChange = (newState: DisplayState) => {
     setDisplayStates((prev) => {
       const newMap = new Map(prev);
       newMap.set(newState.display.id, newState);
       return newMap;
     });
-  }, []);
+  };
 
   return (
     <div
