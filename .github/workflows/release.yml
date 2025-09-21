@@ -105,12 +105,28 @@ jobs:
         run: pnpm install
         
       - name: Build Tauri app
-        uses: tauri-apps/tauri-action@v0
+        run: |
+          if [[ "${{ matrix.platform }}" == "macos-latest" ]]; then
+            # Build for Universal macOS
+            pnpm tauri build --target universal-apple-darwin
+          else
+            # Build for current platform
+            pnpm tauri build
+          fi
+        
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.create-release.outputs.version }}
+          files: |
+            src-tauri/target/release/bundle/**/*.dmg
+            src-tauri/target/release/bundle/**/*.app.tar.gz
+            src-tauri/target/release/bundle/**/*.AppImage
+            src-tauri/target/release/bundle/**/*.deb
+            src-tauri/target/release/bundle/**/*.exe
+            src-tauri/target/release/bundle/**/*.msi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          releaseId: ${{ needs.create-release.outputs.release_id }}
-          args: ${{ matrix.args }}
           
   publish-release:
     runs-on: ubuntu-latest
