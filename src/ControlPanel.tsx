@@ -15,10 +15,11 @@
  * - Global keyboard shortcut integration
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { DisplayCard } from "./components/DisplayCard";
 import { handleIpcError, invoke, listen } from "./lib/ipc";
-import { verifyAndRecoverOverlays } from "./lib/recovery";
+// Recovery functionality available but not currently used
+// import { verifyAndRecoverOverlays } from "./lib/recovery";
 import type { Display, DisplayState, IpcError } from "./types/ipc";
 
 export function ControlPanel() {

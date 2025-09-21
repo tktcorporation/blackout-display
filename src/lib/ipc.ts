@@ -29,23 +29,8 @@ import {
   IpcEventPayloads,
 } from "../types/ipc";
 
-/**
- * Convert object keys from camelCase to snake_case
- *
- * Purpose: Maintain consistent naming conventions between TypeScript (camelCase)
- * and Rust (snake_case) while keeping the developer experience idiomatic
- *
- * @param obj - Object with camelCase keys
- * @returns Object with snake_case keys
- */
-function camelToSnake(obj: Record<string, unknown>): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(obj)) {
-    const snakeKey = key.replace(/([A-Z])/g, "_$1").toLowerCase();
-    result[snakeKey] = value;
-  }
-  return result;
-}
+// Note: camelToSnake conversion is not needed for Tauri v2
+// as it accepts camelCase parameters directly
 
 /**
  * Type-safe wrapper for Tauri invoke command

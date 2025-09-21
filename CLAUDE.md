@@ -23,10 +23,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `pnpm typecheck` - Run TypeScript type checking
 - `cargo clippy --manifest-path src-tauri/Cargo.toml` - Run Rust linter
 
-**IMPORTANT**: Always run linting and type checking after making changes:
+### Testing
+- `pnpm test` - Run tests in watch mode
+- `pnpm test:run` - Run tests once
+- `pnpm test:ui` - Run tests with UI interface
+
+**IMPORTANT**: Always run linting, type checking, and tests after making changes:
 ```bash
-pnpm lint src/ && pnpm typecheck && cargo clippy --manifest-path src-tauri/Cargo.toml
+pnpm lint src/ && pnpm typecheck && cargo clippy --manifest-path src-tauri/Cargo.toml && pnpm test:run
 ```
+
+### IPC Interface Validation
+The project includes automated validation to ensure TypeScript and Rust IPC interfaces stay in sync:
+- Rust metadata is generated during build in `src-tauri/build.rs`
+- Tests in `src/__tests__/ipc-interface.test.ts` validate interface consistency
+- CI/CD runs these tests automatically on every commit
 
 ## Architecture
 
