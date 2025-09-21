@@ -2,6 +2,16 @@
 
 A Tauri v2 application that creates a fullscreen black overlay for screen blackout purposes. Control multiple displays independently with adjustable opacity.
 
+## Installation
+
+### Download Pre-built Binaries
+
+Download the latest release for your platform from the [Releases](https://github.com/tktcorporation/blackout-display/releases) page:
+
+- **macOS**: `blackout_x.x.x_universal.dmg` (Universal binary for Intel and Apple Silicon)
+- **Windows**: `blackout_x.x.x_x64-setup.exe`
+- **Linux**: `blackout_x.x.x_amd64.AppImage` or `.deb`
+
 ## Features
 
 - 🖥️ Multiple display support with individual control
