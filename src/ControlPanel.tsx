@@ -18,10 +18,10 @@
 import { useEffect, useState } from "react";
 import { DisplayCard } from "./components/DisplayCard";
 import { handleIpcError, invoke, listen } from "./lib/ipc";
-import { logger } from "./utils/logger";
 // Recovery functionality available but not currently used
 // import { verifyAndRecoverOverlays } from "./lib/recovery";
 import type { Display, DisplayState, IpcError } from "./types/ipc";
+import { logger } from "./utils/logger";
 
 export function ControlPanel() {
   const [displays, setDisplays] = useState<Display[]>([]);
