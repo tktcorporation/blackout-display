@@ -105,6 +105,7 @@ jobs:
         run: pnpm install
         
       - name: Build Tauri app
+        shell: bash
         run: |
           if [[ "${{ matrix.platform }}" == "macos-latest" ]]; then
             # Build for Universal macOS
