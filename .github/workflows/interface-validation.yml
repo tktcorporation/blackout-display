@@ -99,7 +99,4 @@ jobs:
       run: pnpm test:run
     
     - name: Build application
-      run: pnpm tauri build
-      env:
-        TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_PRIVATE_KEY_PASSWORD }}
-        TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+      run: pnpm tauri build --ci
