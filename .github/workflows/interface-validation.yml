@@ -57,10 +57,16 @@ jobs:
         platform: [macos-latest, ubuntu-latest, windows-latest]
     
     runs-on: ${{ matrix.platform }}
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
+    - name: Configure git for Windows
+      if: matrix.platform == 'windows-latest'
+      run: |
+        git config --global core.autocrlf false
+        git config --global core.eol lf
+
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
       with:
