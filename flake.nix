@@ -38,6 +38,7 @@
           # Development tools
           direnv
           git
+          ripgrep
         ] ++ lib.optionals stdenv.isDarwin [
           # macOS specific dependencies
           darwin.apple_sdk.frameworks.CoreServices

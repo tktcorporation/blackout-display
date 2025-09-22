@@ -27,3 +27,6 @@ dist-ssr
 .direnv/
 result
 result-*
+
+# Generated files
+ipc_metadata.json
