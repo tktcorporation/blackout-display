@@ -21,10 +21,10 @@ mod tests {
     fn test_opacity_value_conversion() {
         // Test that opacity values are correctly converted to alpha values
         let test_cases = vec![
-            (0.0_f32, 0_u8),      // 0% opacity -> 0 alpha
-            (0.5_f32, 127_u8),    // 50% opacity -> 127 alpha
-            (1.0_f32, 255_u8),    // 100% opacity -> 255 alpha
-            (0.8_f32, 204_u8),    // 80% opacity -> 204 alpha
+            (0.0_f32, 0_u8),   // 0% opacity -> 0 alpha
+            (0.5_f32, 127_u8), // 50% opacity -> 127 alpha
+            (1.0_f32, 255_u8), // 100% opacity -> 255 alpha
+            (0.8_f32, 204_u8), // 80% opacity -> 204 alpha
         ];
 
         for (opacity, expected_alpha) in test_cases {
@@ -65,19 +65,15 @@ mod tests {
     #[test]
     fn test_opacity_bounds() {
         // Test that opacity values outside 0-1 range are handled correctly
-        let out_of_bounds = vec![
-            -0.1_f32,
-            1.5_f32,
-            -100.0_f32,
-            100.0_f32,
-        ];
+        let out_of_bounds = vec![-0.1_f32, 1.5_f32, -100.0_f32, 100.0_f32];
 
         for opacity in out_of_bounds {
             let alpha = ((opacity.max(0.0).min(1.0)) * 255.0) as u8;
             assert!(
                 alpha <= 255,
                 "Alpha value {} should be within 0-255 range for opacity {}",
-                alpha, opacity
+                alpha,
+                opacity
             );
         }
     }

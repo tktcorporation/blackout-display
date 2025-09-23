@@ -19,7 +19,7 @@ impl OverlayState {
         Self {
             display_id,
             is_visible: false,
-            opacity: 0.8,  // Default to 80% opacity
+            opacity: 0.8, // Default to 80% opacity
             is_click_through: true,
         }
     }
@@ -53,7 +53,10 @@ impl AppState {
         F: FnOnce(&mut OverlayState),
     {
         let mut overlays = self.overlays.lock().map_err(|e| {
-            IpcError::new(IpcErrorCode::Unknown, format!("Failed to acquire lock: {}", e))
+            IpcError::new(
+                IpcErrorCode::Unknown,
+                format!("Failed to acquire lock: {}", e),
+            )
         })?;
 
         match overlays.get_mut(display_id) {
@@ -71,7 +74,10 @@ impl AppState {
     /// Create or update overlay state
     pub fn set_overlay_state(&self, display_id: String, state: OverlayState) -> IpcResult<()> {
         let mut overlays = self.overlays.lock().map_err(|e| {
-            IpcError::new(IpcErrorCode::Unknown, format!("Failed to acquire lock: {}", e))
+            IpcError::new(
+                IpcErrorCode::Unknown,
+                format!("Failed to acquire lock: {}", e),
+            )
         })?;
 
         overlays.insert(display_id, state);
@@ -81,7 +87,10 @@ impl AppState {
     /// Remove overlay state
     pub fn remove_overlay_state(&self, display_id: &str) -> IpcResult<()> {
         let mut overlays = self.overlays.lock().map_err(|e| {
-            IpcError::new(IpcErrorCode::Unknown, format!("Failed to acquire lock: {}", e))
+            IpcError::new(
+                IpcErrorCode::Unknown,
+                format!("Failed to acquire lock: {}", e),
+            )
         })?;
 
         overlays.remove(display_id);
@@ -91,7 +100,10 @@ impl AppState {
     /// Get all overlay states
     pub fn get_all_overlay_states(&self) -> IpcResult<Vec<OverlayState>> {
         let overlays = self.overlays.lock().map_err(|e| {
-            IpcError::new(IpcErrorCode::Unknown, format!("Failed to acquire lock: {}", e))
+            IpcError::new(
+                IpcErrorCode::Unknown,
+                format!("Failed to acquire lock: {}", e),
+            )
         })?;
 
         Ok(overlays.values().cloned().collect())

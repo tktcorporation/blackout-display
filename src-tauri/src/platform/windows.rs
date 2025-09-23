@@ -17,18 +17,16 @@
  * - windows-rs crate for WinAPI access
  * - Tauri window handles
  */
-
 use windows::{
     core::PCWSTR,
     Win32::{
         Foundation::{BOOL, HWND},
-        Graphics::Dwm::{DwmExtendFrameIntoClientArea, DWM_BLURBEHIND, DwmEnableBlurBehindWindow},
+        Graphics::Dwm::{DwmEnableBlurBehindWindow, DwmExtendFrameIntoClientArea, DWM_BLURBEHIND},
         Graphics::Gdi::{CreateRectRgn, DeleteObject},
         UI::WindowsAndMessaging::{
-            GetWindowLongPtrW, SetLayeredWindowAttributes, SetWindowLongPtrW,
-            GetWindowLongW, SetWindowLongW,
-            GWL_EXSTYLE, LAYERED_WINDOW_ATTRIBUTES_FLAGS, LWA_ALPHA, LWA_COLORKEY,
-            WS_EX_LAYERED, WS_EX_TRANSPARENT, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
+            GetWindowLongPtrW, GetWindowLongW, SetLayeredWindowAttributes, SetWindowLongPtrW,
+            SetWindowLongW, GWL_EXSTYLE, LAYERED_WINDOW_ATTRIBUTES_FLAGS, LWA_ALPHA, LWA_COLORKEY,
+            WS_EX_LAYERED, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT,
         },
     },
 };
@@ -57,7 +55,10 @@ pub fn apply_transparency_to_window(hwnd: isize, opacity: f32) -> Result<(), Str
         let current_style = GetWindowLongW(hwnd, GWL_EXSTYLE);
 
         // Add WS_EX_LAYERED and WS_EX_TRANSPARENT for click-through
-        let new_style = current_style | WS_EX_LAYERED.0 as i32 | WS_EX_TRANSPARENT.0 as i32 | WS_EX_TOOLWINDOW.0 as i32;
+        let new_style = current_style
+            | WS_EX_LAYERED.0 as i32
+            | WS_EX_TRANSPARENT.0 as i32
+            | WS_EX_TOOLWINDOW.0 as i32;
 
         // Apply the new style
         SetWindowLongW(hwnd, GWL_EXSTYLE, new_style);
@@ -68,14 +69,15 @@ pub fn apply_transparency_to_window(hwnd: isize, opacity: f32) -> Result<(), Str
         // Set the transparency using SetLayeredWindowAttributes
         // Using LWA_ALPHA for opacity control
         let result = SetLayeredWindowAttributes(
-            hwnd,
-            0, // color key (not used when using LWA_ALPHA only)
-            alpha,
-            LWA_ALPHA,
+            hwnd, 0, // color key (not used when using LWA_ALPHA only)
+            alpha, LWA_ALPHA,
         );
 
         if result.is_err() {
-            return Err(format!("Failed to set layered window attributes: {:?}", result));
+            return Err(format!(
+                "Failed to set layered window attributes: {:?}",
+                result
+            ));
         }
 
         // Try to apply DWM effects for better transparency on Windows 10+
@@ -192,14 +194,10 @@ pub fn get_hwnd_from_tauri_window(window: &tauri::WebviewWindow) -> Result<isize
     use raw_window_handle::HasWindowHandle;
 
     match window.window_handle() {
-        Ok(handle) => {
-            match handle.as_raw() {
-                raw_window_handle::RawWindowHandle::Win32(handle) => {
-                    Ok(handle.hwnd.get() as isize)
-                }
-                _ => Err("Not a Windows window handle".to_string()),
-            }
-        }
+        Ok(handle) => match handle.as_raw() {
+            raw_window_handle::RawWindowHandle::Win32(handle) => Ok(handle.hwnd.get() as isize),
+            _ => Err("Not a Windows window handle".to_string()),
+        },
         Err(e) => Err(format!("Failed to get window handle: {}", e)),
     }
 }
