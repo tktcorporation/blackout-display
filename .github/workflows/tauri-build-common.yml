@@ -36,19 +36,19 @@ jobs:
           git config --global core.autocrlf false
           git config --global core.eol lf
 
-      # Setup Node.js
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'  # Enable Node cache
-
-      # Setup PNPM
+      # Setup PNPM first (required for Node.js cache)
       - name: Setup PNPM
         uses: pnpm/action-setup@v3
         with:
           version: 10
           run_install: false  # We'll install separately with cache
+
+      # Setup Node.js with pnpm cache
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'  # Enable Node cache (pnpm must be installed first)
 
       # Cache PNPM store
       - name: Get pnpm store directory
