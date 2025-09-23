@@ -107,10 +107,18 @@ jobs:
             BUILD_FLAGS="--debug --ci"
           fi
 
-          # Build with appropriate target for macOS universal binary
+          # Platform-specific builds
           if [[ "${{ inputs.platform }}" == "macos-latest" && "${{ inputs.build-mode }}" == "release" ]]; then
+            # macOS: Build universal binary
             pnpm tauri build --target universal-apple-darwin $BUILD_FLAGS
+          elif [[ "${{ inputs.platform }}" == "ubuntu-latest" ]]; then
+            # Ubuntu: Skip AppImage to avoid hanging (build only .deb)
+            pnpm tauri build --bundles deb $BUILD_FLAGS
+          elif [[ "${{ inputs.platform }}" == "windows-2022" ]]; then
+            # Windows: Build default bundles
+            pnpm tauri build $BUILD_FLAGS
           else
+            # Default build
             pnpm tauri build $BUILD_FLAGS
           fi
 
@@ -134,7 +142,6 @@ jobs:
           files: |
             src-tauri/target/release/bundle/**/*.dmg
             src-tauri/target/release/bundle/**/*.app.tar.gz
-            src-tauri/target/release/bundle/**/*.AppImage
             src-tauri/target/release/bundle/**/*.deb
             src-tauri/target/release/bundle/**/*.exe
             src-tauri/target/release/bundle/**/*.msi
