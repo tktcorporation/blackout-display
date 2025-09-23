@@ -49,22 +49,22 @@ jobs:
         run: pnpm test:run
 
   build-test-macos:
-    uses: ./.github/workflows/tauri-build-common.yml
+    uses: ./.github/workflows/tauri-build-optimized.yml
     with:
       platform: 'macos-latest'
       build-mode: 'debug'
       upload-artifacts: false
 
   build-test-ubuntu:
-    uses: ./.github/workflows/tauri-build-common.yml
+    uses: ./.github/workflows/tauri-build-optimized.yml
     with:
       platform: 'ubuntu-latest'
       build-mode: 'debug'
       upload-artifacts: false
 
   build-test-windows:
-    uses: ./.github/workflows/tauri-build-common.yml
+    uses: ./.github/workflows/tauri-build-optimized.yml
     with:
-      platform: 'windows-latest'
+      platform: 'windows-2022'  # Use specific version to avoid migration warning
       build-mode: 'debug'
       upload-artifacts: false
