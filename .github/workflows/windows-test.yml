@@ -1,0 +1,71 @@
+name: Windows Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  windows-test:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: 'package.json'
+          cache: pnpm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: TypeScript lint
+        run: pnpm lint src/
+
+      - name: TypeScript type check
+        run: pnpm typecheck
+
+      - name: Rust format check
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+
+      - name: Rust lint
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
+
+      - name: Build Rust (Windows)
+        run: cargo build --manifest-path src-tauri/Cargo.toml
+
+      - name: Run Rust unit tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Build Rust for metadata generation
+        run: cargo build --manifest-path src-tauri/Cargo.toml
+
+      - name: Run interface validation tests
+        run: pnpm test:run
+
+      # Windows-specific compilation test
+      - name: Test Windows platform module compilation
+        run: |
+          cargo check --manifest-path src-tauri/Cargo.toml --target x86_64-pc-windows-msvc
+
+      # Build test (not full Tauri build to avoid signing requirements)
+      - name: Build frontend
+        run: pnpm build
+
+      # Check that the Windows-specific code compiles without warnings
+      - name: Check Windows-specific code
+        run: |
+          cargo clippy --manifest-path src-tauri/Cargo.toml --target x86_64-pc-windows-msvc -- -D warnings

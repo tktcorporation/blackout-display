@@ -84,14 +84,30 @@ impl Display {
             // Windows transparency requires careful handling
             eprintln!("Configuring Windows transparency for {}", window_label);
 
-            // Ensure window is on top
-            if let Err(e) = window.set_always_on_top(true) {
-                eprintln!("Warning: Failed to set always on top: {}", e);
-            }
+            // Get the window handle and apply Windows-specific transparency
+            match crate::platform::get_hwnd_from_tauri_window(&window) {
+                Ok(hwnd) => {
+                    eprintln!("Got HWND: {}, applying transparency", hwnd);
 
-            // Make window click-through
-            if let Err(e) = window.set_ignore_cursor_events(true) {
-                eprintln!("Warning: Failed to set ignore cursor events: {}", e);
+                    // Apply Windows-specific transparency (80% opacity by default)
+                    if let Err(e) = crate::platform::apply_transparency_to_window(hwnd, 0.8) {
+                        eprintln!("Warning: Failed to apply Windows transparency: {}", e);
+                        // Fallback to Tauri's built-in methods
+                        let _ = window.set_ignore_cursor_events(true);
+                    } else {
+                        eprintln!("Successfully applied Windows transparency");
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Failed to get HWND: {}, using fallback", e);
+                    // Fallback to Tauri's built-in methods
+                    if let Err(e) = window.set_always_on_top(true) {
+                        eprintln!("Warning: Failed to set always on top: {}", e);
+                    }
+                    if let Err(e) = window.set_ignore_cursor_events(true) {
+                        eprintln!("Warning: Failed to set ignore cursor events: {}", e);
+                    }
+                }
             }
 
             eprintln!("Applied Windows transparency settings");
@@ -253,11 +269,28 @@ pub fn toggle_overlay_visibility(
             // Windows needs explicit window configuration on show
             eprintln!("Preparing Windows overlay for display");
 
-            // Force window to top
-            let _ = window.set_always_on_top(true);
+            // Re-apply Windows-specific transparency when showing
+            match crate::platform::get_hwnd_from_tauri_window(&window) {
+                Ok(hwnd) => {
+                    // Get opacity from state
+                    let opacity = if let Some(overlay_state) = state.get_overlay_state(&displayId) {
+                        overlay_state.opacity
+                    } else {
+                        0.8
+                    };
 
-            // Ensure window is fullscreen without decorations
-            let _ = window.set_decorations(false);
+                    // Re-apply transparency with current opacity
+                    if let Err(e) = crate::platform::apply_transparency_to_window(hwnd, opacity) {
+                        eprintln!("Warning: Failed to re-apply Windows transparency: {}", e);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Failed to get HWND for re-applying transparency: {}", e);
+                    // Fallback
+                    let _ = window.set_always_on_top(true);
+                    let _ = window.set_decorations(false);
+                }
+            }
         }
 
         // When showing, ensure window is properly configured
@@ -358,7 +391,23 @@ pub fn set_overlay_opacity(
     
     // Emit opacity update to the specific overlay window
     eprintln!("Emitting opacity-update to {}: {}", window_label, opacity);
-    
+
+    // Platform-specific opacity handling
+    #[cfg(target_os = "windows")]
+    {
+        // On Windows, also update the window transparency directly
+        match crate::platform::get_hwnd_from_tauri_window(&window) {
+            Ok(hwnd) => {
+                if let Err(e) = crate::platform::apply_transparency_to_window(hwnd, opacity) {
+                    eprintln!("Warning: Failed to update Windows transparency: {}", e);
+                }
+            }
+            Err(e) => {
+                eprintln!("Failed to get HWND for opacity update: {}", e);
+            }
+        }
+    }
+
     // Try multiple methods to update opacity
     // Method 1: Normal event emission
     let emit_result = window.emit("opacity-update", opacity);
