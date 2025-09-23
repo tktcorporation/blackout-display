@@ -162,25 +162,27 @@ export function Overlay() {
           zIndex: 9999,
         }}
       />
-      {/* Debug info - remove in production */}
-      <div
-        style={{
-          position: "fixed",
-          top: 10,
-          left: 10,
-          backgroundColor: "white",
-          padding: "10px",
-          borderRadius: "5px",
-          fontSize: "12px",
-          fontFamily: "monospace",
-          zIndex: 10000,
-          pointerEvents: "none",
-        }}
-      >
-        <div>Display: {displayId}</div>
-        <div>Opacity: {opacity.toFixed(2)}</div>
-        <div>BG: rgba(0, 0, 0, {opacity})</div>
-      </div>
+      {/* Debug info - only show in development mode */}
+      {import.meta.env.DEV && (
+        <div
+          style={{
+            position: "fixed",
+            top: 10,
+            left: 10,
+            backgroundColor: "white",
+            padding: "10px",
+            borderRadius: "5px",
+            fontSize: "12px",
+            fontFamily: "monospace",
+            zIndex: 10000,
+            pointerEvents: "none",
+          }}
+        >
+          <div>Display: {displayId}</div>
+          <div>Opacity: {opacity.toFixed(2)}</div>
+          <div>BG: rgba(0, 0, 0, {opacity})</div>
+        </div>
+      )}
     </>
   );
 }
