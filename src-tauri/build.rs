@@ -4,7 +4,7 @@ use std::path::Path;
 
 fn main() {
     tauri_build::build();
-    
+
     // Generate IPC metadata in development builds
     if env::var("PROFILE").unwrap_or_default() == "debug" {
         generate_ipc_metadata();
@@ -99,7 +99,7 @@ fn generate_ipc_metadata() {
     let out_dir = env::var("OUT_DIR").unwrap();
     let dest_path = Path::new(&out_dir).join("ipc_metadata.json");
     fs::write(&dest_path, metadata).unwrap();
-    
+
     // Also write to the project root for easier access during development
     if let Ok(manifest_dir) = env::var("CARGO_MANIFEST_DIR") {
         let project_metadata_path = Path::new(&manifest_dir)
@@ -108,7 +108,7 @@ fn generate_ipc_metadata() {
             .join("ipc_metadata.json");
         fs::write(&project_metadata_path, metadata).unwrap();
     }
-    
+
     println!("cargo:rerun-if-changed=src/display.rs");
     println!("cargo:rerun-if-changed=src/recovery.rs");
     println!("cargo:rerun-if-changed=src/lib.rs");

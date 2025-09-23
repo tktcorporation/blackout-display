@@ -1,10 +1,16 @@
 mod display;
 mod error;
+pub mod platform;
 mod recovery;
 mod state;
 
-use display::{create_overlay_for_display, get_displays, set_overlay_opacity, toggle_overlay_visibility};
-use recovery::{cleanup_orphaned_states, force_recreate_overlay, get_overlay_states, verify_and_recover_overlays};
+use display::{
+    create_overlay_for_display, get_displays, set_overlay_opacity, toggle_overlay_visibility,
+};
+use recovery::{
+    cleanup_orphaned_states, force_recreate_overlay, get_overlay_states,
+    verify_and_recover_overlays,
+};
 use state::AppState;
 use tauri::Emitter;
 
@@ -16,9 +22,9 @@ pub fn run() {
         .setup(|app| {
             #[cfg(desktop)]
             {
-                use tauri::{Manager};
-                use tauri_plugin_global_shortcut::{ShortcutState};
-                
+                use tauri::Manager;
+                use tauri_plugin_global_shortcut::ShortcutState;
+
                 // Register global shortcuts
                 app.handle().plugin(
                     tauri_plugin_global_shortcut::Builder::new()
@@ -34,14 +40,22 @@ pub fn run() {
                                 let shortcut_str = format!("{:?}", shortcut);
                                 if shortcut_str.contains("CommandOrControl+Shift+B") {
                                     if let Err(e) = app.emit("toggle-all-displays", ()) {
-                                        eprintln!("Failed to emit toggle-all-displays event: {}", e);
+                                        eprintln!(
+                                            "Failed to emit toggle-all-displays event: {}",
+                                            e
+                                        );
                                     }
                                 } else if shortcut_str.contains("CommandOrControl+Alt+") {
                                     // Extract the number from the shortcut
                                     for i in 1..=4 {
-                                        if shortcut_str.contains(&format!("CommandOrControl+Alt+{}", i)) {
+                                        if shortcut_str
+                                            .contains(&format!("CommandOrControl+Alt+{}", i))
+                                        {
                                             if let Err(e) = app.emit("toggle-display", i) {
-                                                eprintln!("Failed to emit toggle-display event: {}", e);
+                                                eprintln!(
+                                                    "Failed to emit toggle-display event: {}",
+                                                    e
+                                                );
                                             }
                                             break;
                                         }
@@ -51,7 +65,7 @@ pub fn run() {
                         })
                         .build(),
                 )?;
-                
+
                 // Show main control window after setup
                 if let Some(window) = app.get_webview_window("main") {
                     // Ensure main window accepts cursor events (not click-through)

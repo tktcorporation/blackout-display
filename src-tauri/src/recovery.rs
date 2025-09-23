@@ -12,17 +12,20 @@ pub async fn verify_and_recover_overlays(app_handle: AppHandle) -> IpcResult<Vec
 
     for overlay in overlay_states {
         let display_id = overlay.display_id.clone();
-        
+
         // Check if the window exists
         if !verify_overlay_window_exists(&app_handle, &display_id) {
             // Window doesn't exist but state says it should - try to recover
-            eprintln!("Overlay window for display {} is missing, attempting recovery", display_id);
-            
+            eprintln!(
+                "Overlay window for display {} is missing, attempting recovery",
+                display_id
+            );
+
             // Try to recreate the window
             match create_overlay_for_display(app_handle.clone(), display_id.clone()) {
                 Ok(_) => {
                     recovered.push(display_id.clone());
-                    
+
                     // Restore previous visibility state if it was visible
                     if overlay.is_visible {
                         let window_label = format!("overlay-{}", display_id);
@@ -32,7 +35,10 @@ pub async fn verify_and_recover_overlays(app_handle: AppHandle) -> IpcResult<Vec
                     }
                 }
                 Err(e) => {
-                    eprintln!("Failed to recover overlay for display {}: {}", display_id, e);
+                    eprintln!(
+                        "Failed to recover overlay for display {}: {}",
+                        display_id, e
+                    );
                     // Remove the invalid state
                     let _ = state.remove_overlay_state(&display_id);
                 }
@@ -48,12 +54,12 @@ pub async fn verify_and_recover_overlays(app_handle: AppHandle) -> IpcResult<Vec
 pub fn get_overlay_states(app_handle: AppHandle) -> IpcResult<serde_json::Value> {
     let state = get_app_state(&app_handle);
     let overlay_states = state.get_all_overlay_states()?;
-    
+
     let mut result = Vec::new();
-    
+
     for overlay in overlay_states {
         let window_exists = verify_overlay_window_exists(&app_handle, &overlay.display_id);
-        
+
         result.push(serde_json::json!({
             "display_id": overlay.display_id,
             "is_visible": overlay.is_visible,
@@ -62,7 +68,7 @@ pub fn get_overlay_states(app_handle: AppHandle) -> IpcResult<serde_json::Value>
             "window_exists": window_exists,
         }));
     }
-    
+
     Ok(serde_json::json!(result))
 }
 
@@ -87,11 +93,10 @@ pub fn cleanup_orphaned_states(app_handle: AppHandle) -> IpcResult<Vec<String>> 
 #[tauri::command]
 pub fn force_recreate_overlay(
     app_handle: AppHandle,
-    #[allow(non_snake_case)]
-    displayId: String,
+    #[allow(non_snake_case)] displayId: String,
 ) -> IpcResult<()> {
     let window_label = format!("overlay-{}", displayId);
-    
+
     // Close existing window if it exists
     if let Some(window) = app_handle.get_webview_window(&window_label) {
         window.close().map_err(|e| {
@@ -101,11 +106,11 @@ pub fn force_recreate_overlay(
             )
         })?;
     }
-    
+
     // Remove old state
     let state = get_app_state(&app_handle);
     state.remove_overlay_state(&displayId)?;
-    
+
     // Recreate the window
     create_overlay_for_display(app_handle, displayId)
 }

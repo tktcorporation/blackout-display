@@ -23,8 +23,8 @@
         };
 
         buildInputs = with pkgs; [
-          # Rust toolchain
-          rustToolchain
+          # Rust toolchain and rustup for cross-compilation
+          rustup
           pkg-config
           
           # Node.js environment
@@ -66,10 +66,23 @@
           
           shellHook = ''
             echo "Blackout Display Development Environment"
-            echo "Rust: $(rustc --version)"
+
+            # Set up rustup if not already configured
+            if ! rustup show active-toolchain &>/dev/null; then
+              echo "Setting up rustup toolchain..."
+              rustup default stable
+              rustup target add x86_64-pc-windows-msvc
+              rustup target add x86_64-unknown-linux-gnu
+              rustup target add aarch64-apple-darwin
+              rustup target add x86_64-apple-darwin
+            fi
+
+            echo "Rust: $(rustc --version 2>/dev/null || echo 'Setting up...')"
             echo "Node: $(node --version)"
             echo "pnpm: $(pnpm --version)"
-            
+            echo "Available Rust targets:"
+            rustup target list --installed 2>/dev/null | sed 's/^/  - /' || echo "  Setting up..."
+
             # Set up Rust environment
             export RUST_BACKTRACE=full
             export RUSTFLAGS="-C target-cpu=native"
