@@ -88,6 +88,7 @@ pub fn apply_transparency_to_window(hwnd: isize, opacity: f32) -> Result<(), Str
 //
 // @param hwnd - The window handle to make interactive
 // @returns Result indicating success or failure
+#[allow(dead_code)]
 pub fn remove_click_through(hwnd: isize) -> Result<(), String> {
     unsafe {
         let hwnd = HWND(hwnd as *mut std::ffi::c_void);
@@ -111,6 +112,7 @@ pub fn remove_click_through(hwnd: isize) -> Result<(), String> {
 //
 // @param hwnd - The window handle to make click-through
 // @returns Result indicating success or failure
+#[allow(dead_code)]
 pub fn apply_click_through(hwnd: isize) -> Result<(), String> {
     unsafe {
         let hwnd = HWND(hwnd as *mut std::ffi::c_void);
@@ -181,7 +183,7 @@ pub fn get_hwnd_from_tauri_window(window: &tauri::WebviewWindow) -> Result<isize
 
     match window.window_handle() {
         Ok(handle) => match handle.as_raw() {
-            raw_window_handle::RawWindowHandle::Win32(handle) => Ok(handle.hwnd.get() as isize),
+            raw_window_handle::RawWindowHandle::Win32(handle) => Ok(handle.hwnd.get()),
             _ => Err("Not a Windows window handle".to_string()),
         },
         Err(e) => Err(format!("Failed to get window handle: {}", e)),
