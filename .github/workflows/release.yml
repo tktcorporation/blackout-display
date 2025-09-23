@@ -85,7 +85,7 @@ jobs:
     needs: create-release
     uses: ./.github/workflows/tauri-build-common.yml
     with:
-      platform: 'windows-latest'
+      platform: 'windows-2022'  # Use specific version to avoid migration warning
       build-mode: 'release'
       release-tag: ${{ needs.create-release.outputs.version }}
     secrets: inherit

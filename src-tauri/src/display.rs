@@ -35,7 +35,8 @@ impl Display {
         eprintln!("Creating overlay for display: {} at position ({}, {}) with size {}x{}", 
             self.name, self.x, self.y, self.width, self.height);
         
-        let window = WebviewWindowBuilder::new(
+        // Build window with platform-appropriate settings
+        let mut builder = WebviewWindowBuilder::new(
             app_handle,
             window_label.clone(),
             WebviewUrl::App("index.html".into()),
@@ -49,22 +50,60 @@ impl Display {
         .resizable(false)
         .skip_taskbar(true)
         .focused(false)
-        .visible(false)
-        .transparent(true)
-        .accept_first_mouse(false)
-        .build()?;
+        .visible(false);
+
+        // Platform-specific builder configuration
+        #[cfg(not(target_os = "windows"))]
+        {
+            builder = builder.transparent(true).accept_first_mouse(false);
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            // Windows has issues with transparent windows, use a different approach
+            builder = builder.transparent(true);
+            eprintln!("Building Windows overlay with transparency enabled");
+        }
+
+        let window = builder.build()?;
         
         eprintln!("Successfully created window: {}", window_label);
-        
-        // macOS-specific settings for transparency
+
+        // Platform-specific settings for transparency
         #[cfg(target_os = "macos")]
         {
             use tauri::window::Color;
             let _ = window.set_background_color(Some(Color(0, 0, 0, 0)));
             // Make window click-through
             let _ = window.set_ignore_cursor_events(true);
+            eprintln!("Applied macOS transparency settings");
         }
-        
+
+        #[cfg(target_os = "windows")]
+        {
+            // Windows transparency requires careful handling
+            eprintln!("Configuring Windows transparency for {}", window_label);
+
+            // Ensure window is on top
+            if let Err(e) = window.set_always_on_top(true) {
+                eprintln!("Warning: Failed to set always on top: {}", e);
+            }
+
+            // Make window click-through
+            if let Err(e) = window.set_ignore_cursor_events(true) {
+                eprintln!("Warning: Failed to set ignore cursor events: {}", e);
+            }
+
+            eprintln!("Applied Windows transparency settings");
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            // Linux transparency settings
+            let _ = window.set_ignore_cursor_events(true);
+            eprintln!("Applied Linux transparency settings");
+        }
+
         Ok(window)
     }
 }
@@ -206,9 +245,27 @@ pub fn toggle_overlay_visibility(
     
     // Apply visibility change with error recovery
     let visibility_result = if visible {
+        eprintln!("Attempting to show overlay window: {}", window_label);
+
+        // Platform-specific handling for showing windows
+        #[cfg(target_os = "windows")]
+        {
+            // Windows needs explicit window configuration on show
+            eprintln!("Preparing Windows overlay for display");
+
+            // Force window to top
+            let _ = window.set_always_on_top(true);
+
+            // Ensure window is fullscreen without decorations
+            let _ = window.set_decorations(false);
+        }
+
         // When showing, ensure window is properly configured
         window.set_ignore_cursor_events(true)
-            .map_err(|e| IpcError::from_error(IpcErrorCode::Unknown, &e))?;
+            .map_err(|e| {
+                eprintln!("Warning: Failed to set ignore cursor events: {}", e);
+                IpcError::from_error(IpcErrorCode::Unknown, &e)
+            })?;
         
         // Get the display to ensure window is on correct monitor
         let displays = get_displays(app_handle.clone())?;
@@ -225,9 +282,12 @@ pub fn toggle_overlay_visibility(
                 display.height,
             )));
         }
-        
-        window.show()
+
+        let show_result = window.show();
+        eprintln!("Window show result: {:?}", show_result);
+        show_result
     } else {
+        eprintln!("Hiding overlay window: {}", window_label);
         window.hide()
     };
     
