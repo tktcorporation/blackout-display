@@ -65,7 +65,7 @@ jobs:
 
   build-tauri-macos:
     needs: create-release
-    uses: ./.github/workflows/tauri-build-optimized.yml
+    uses: ./.github/workflows/tauri-build-common.yml
     with:
       platform: 'macos-latest'
       build-mode: 'release'
@@ -74,7 +74,7 @@ jobs:
 
   build-tauri-ubuntu:
     needs: create-release
-    uses: ./.github/workflows/tauri-build-optimized.yml
+    uses: ./.github/workflows/tauri-build-common.yml
     with:
       platform: 'ubuntu-latest'
       build-mode: 'release'
@@ -83,7 +83,7 @@ jobs:
 
   build-tauri-windows:
     needs: create-release
-    uses: ./.github/workflows/tauri-build-optimized.yml
+    uses: ./.github/workflows/tauri-build-common.yml
     with:
       platform: 'windows-2022'  # Use specific version to avoid migration warning
       build-mode: 'release'
