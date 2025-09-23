@@ -1,55 +1,47 @@
-/**
- * platform/windows.rs
- *
- * Purpose: Windows-specific implementation for transparent overlay windows
- *
- * This module provides Windows-specific functionality to create transparent,
- * click-through overlay windows using the Windows API. It addresses the
- * limitations of Tauri's built-in transparency support on Windows.
- *
- * Key features:
- * - Uses SetLayeredWindowAttributes for transparency
- * - Implements WS_EX_LAYERED and WS_EX_TRANSPARENT styles
- * - Provides click-through functionality
- * - Handles DWM (Desktop Window Manager) integration for Windows 10+
- *
- * Dependencies:
- * - windows-rs crate for WinAPI access
- * - Tauri window handles
- */
-use windows::{
-    core::PCWSTR,
-    Win32::{
-        Foundation::{BOOL, HWND},
-        Graphics::Dwm::{DwmEnableBlurBehindWindow, DwmExtendFrameIntoClientArea, DWM_BLURBEHIND},
-        Graphics::Gdi::{CreateRectRgn, DeleteObject},
-        UI::WindowsAndMessaging::{
-            GetWindowLongPtrW, GetWindowLongW, SetLayeredWindowAttributes, SetWindowLongPtrW,
-            SetWindowLongW, GWL_EXSTYLE, LAYERED_WINDOW_ATTRIBUTES_FLAGS, LWA_ALPHA, LWA_COLORKEY,
-            WS_EX_LAYERED, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT,
-        },
+// platform/windows.rs
+//
+// Purpose: Windows-specific implementation for transparent overlay windows
+//
+// This module provides Windows-specific functionality to create transparent,
+// click-through overlay windows using the Windows API. It addresses the
+// limitations of Tauri's built-in transparency support on Windows.
+//
+// Key features:
+// - Uses SetLayeredWindowAttributes for transparency
+// - Implements WS_EX_LAYERED and WS_EX_TRANSPARENT styles
+// - Provides click-through functionality
+// - Handles DWM (Desktop Window Manager) integration for Windows 10+
+//
+// Dependencies:
+// - windows-rs crate for WinAPI access
+// - Tauri window handles
+use windows::Win32::{
+    Foundation::{BOOL, COLORREF, HWND},
+    Graphics::Dwm::{DwmEnableBlurBehindWindow, DwmExtendFrameIntoClientArea, DWM_BLURBEHIND},
+    Graphics::Gdi::{CreateRectRgn, DeleteObject},
+    UI::WindowsAndMessaging::{
+        GetWindowLongW, SetLayeredWindowAttributes, SetWindowLongW, GWL_EXSTYLE, LWA_ALPHA,
+        WS_EX_LAYERED, WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT,
     },
 };
 
-/**
- * Applies Windows-specific transparency settings to an overlay window
- *
- * Purpose: Configures a window to be transparent and click-through on Windows
- * using the Windows API directly, as Tauri's built-in transparency support
- * is incomplete on this platform.
- *
- * @param hwnd - The window handle to apply transparency to
- * @param opacity - The opacity level (0.0 to 1.0)
- * @returns Result indicating success or failure
- *
- * Side Effects:
- * - Modifies window extended styles (WS_EX_LAYERED, WS_EX_TRANSPARENT)
- * - Sets window transparency using SetLayeredWindowAttributes
- * - Optionally applies DWM blur effects for better transparency
- */
+// Applies Windows-specific transparency settings to an overlay window
+//
+// Purpose: Configures a window to be transparent and click-through on Windows
+// using the Windows API directly, as Tauri's built-in transparency support
+// is incomplete on this platform.
+//
+// @param hwnd - The window handle to apply transparency to
+// @param opacity - The opacity level (0.0 to 1.0)
+// @returns Result indicating success or failure
+//
+// Side Effects:
+// - Modifies window extended styles (WS_EX_LAYERED, WS_EX_TRANSPARENT)
+// - Sets window transparency using SetLayeredWindowAttributes
+// - Optionally applies DWM blur effects for better transparency
 pub fn apply_transparency_to_window(hwnd: isize, opacity: f32) -> Result<(), String> {
     unsafe {
-        let hwnd = HWND(hwnd);
+        let hwnd = HWND(hwnd as *mut std::ffi::c_void);
 
         // Get current extended window style
         let current_style = GetWindowLongW(hwnd, GWL_EXSTYLE);
@@ -69,8 +61,10 @@ pub fn apply_transparency_to_window(hwnd: isize, opacity: f32) -> Result<(), Str
         // Set the transparency using SetLayeredWindowAttributes
         // Using LWA_ALPHA for opacity control
         let result = SetLayeredWindowAttributes(
-            hwnd, 0, // color key (not used when using LWA_ALPHA only)
-            alpha, LWA_ALPHA,
+            hwnd,
+            COLORREF(0), // color key (not used when using LWA_ALPHA only)
+            alpha,
+            LWA_ALPHA,
         );
 
         if result.is_err() {
@@ -88,17 +82,15 @@ pub fn apply_transparency_to_window(hwnd: isize, opacity: f32) -> Result<(), Str
     }
 }
 
-/**
- * Removes click-through behavior from a window
- *
- * Purpose: Makes a window interactive again by removing the WS_EX_TRANSPARENT style
- *
- * @param hwnd - The window handle to make interactive
- * @returns Result indicating success or failure
- */
+// Removes click-through behavior from a window
+//
+// Purpose: Makes a window interactive again by removing the WS_EX_TRANSPARENT style
+//
+// @param hwnd - The window handle to make interactive
+// @returns Result indicating success or failure
 pub fn remove_click_through(hwnd: isize) -> Result<(), String> {
     unsafe {
-        let hwnd = HWND(hwnd);
+        let hwnd = HWND(hwnd as *mut std::ffi::c_void);
 
         // Get current extended window style
         let current_style = GetWindowLongW(hwnd, GWL_EXSTYLE);
@@ -113,17 +105,15 @@ pub fn remove_click_through(hwnd: isize) -> Result<(), String> {
     }
 }
 
-/**
- * Applies click-through behavior to a window
- *
- * Purpose: Makes a window non-interactive by adding the WS_EX_TRANSPARENT style
- *
- * @param hwnd - The window handle to make click-through
- * @returns Result indicating success or failure
- */
+// Applies click-through behavior to a window
+//
+// Purpose: Makes a window non-interactive by adding the WS_EX_TRANSPARENT style
+//
+// @param hwnd - The window handle to make click-through
+// @returns Result indicating success or failure
 pub fn apply_click_through(hwnd: isize) -> Result<(), String> {
     unsafe {
-        let hwnd = HWND(hwnd);
+        let hwnd = HWND(hwnd as *mut std::ffi::c_void);
 
         // Get current extended window style
         let current_style = GetWindowLongW(hwnd, GWL_EXSTYLE);
@@ -138,19 +128,17 @@ pub fn apply_click_through(hwnd: isize) -> Result<(), String> {
     }
 }
 
-/**
- * Applies DWM transparency effects for Windows 10+
- *
- * Purpose: Uses Desktop Window Manager APIs to enhance transparency effects
- * on Windows 10 and later versions.
- *
- * @param hwnd - The window handle
- * @param opacity - The opacity level (not directly used by DWM, but kept for future use)
- *
- * Side Effects:
- * - Extends frame into client area for full transparency
- * - May fail silently on older Windows versions
- */
+// Applies DWM transparency effects for Windows 10+
+//
+// Purpose: Uses Desktop Window Manager APIs to enhance transparency effects
+// on Windows 10 and later versions.
+//
+// @param hwnd - The window handle
+// @param opacity - The opacity level (not directly used by DWM, but kept for future use)
+//
+// Side Effects:
+// - Extends frame into client area for full transparency
+// - May fail silently on older Windows versions
 fn apply_dwm_transparency(hwnd: HWND, _opacity: f32) {
     unsafe {
         // For Windows 10+, use DwmExtendFrameIntoClientArea for full transparency
@@ -181,15 +169,13 @@ fn apply_dwm_transparency(hwnd: HWND, _opacity: f32) {
     }
 }
 
-/**
- * Gets the native window handle from a Tauri window
- *
- * Purpose: Extracts the platform-specific window handle (HWND) from a Tauri window
- * for use with Windows API functions.
- *
- * @param window - The Tauri window
- * @returns The HWND as an isize, or error if extraction fails
- */
+// Gets the native window handle from a Tauri window
+//
+// Purpose: Extracts the platform-specific window handle (HWND) from a Tauri window
+// for use with Windows API functions.
+//
+// @param window - The Tauri window
+// @returns The HWND as an isize, or error if extraction fails
 pub fn get_hwnd_from_tauri_window(window: &tauri::WebviewWindow) -> Result<isize, String> {
     use raw_window_handle::HasWindowHandle;
 
