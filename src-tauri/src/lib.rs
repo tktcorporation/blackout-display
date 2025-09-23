@@ -1,6 +1,6 @@
 mod display;
 mod error;
-mod platform;
+pub mod platform;
 mod recovery;
 mod state;
 

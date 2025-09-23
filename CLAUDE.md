@@ -11,8 +11,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Build
 - `pnpm build` - Build frontend for production (TypeScript + Vite)
 - `pnpm tauri build` - Build complete Tauri application
-  - Creates `.app` bundle in `src-tauri/target/release/bundle/macos/`
-  - Creates `.dmg` installer in `src-tauri/target/release/bundle/dmg/`
+  - Creates platform-specific bundles:
+    - macOS: `.app` in `src-tauri/target/release/bundle/macos/`, `.dmg` in `src-tauri/target/release/bundle/dmg/`
+    - Windows: `.exe` installer in `src-tauri/target/release/bundle/nsis/`
+    - Linux: `.AppImage` and `.deb` in corresponding bundle directories
 
 ### Dependencies
 - `pnpm install` - Install all dependencies
@@ -33,181 +35,123 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 pnpm lint src/ && pnpm typecheck && cargo clippy --manifest-path src-tauri/Cargo.toml && pnpm test:run
 ```
 
-### IPC Interface Validation
-The project includes automated validation to ensure TypeScript and Rust IPC interfaces stay in sync:
-- Rust metadata is generated during build in `src-tauri/build.rs`
-- Tests in `src/__tests__/ipc-interface.test.ts` validate interface consistency
-- CI/CD runs these tests automatically on every commit
+### Debugging
+- `pnpm dev:debug` - Start dev3000 log collector for enhanced debugging
 
 ## Architecture
 
-This is a Tauri v2 application that creates a fullscreen black overlay for screen blackout purposes.
+This is a Tauri v2 application that creates fullscreen black overlays for multi-display screen blackout control.
+
+### Window Management System
+- **Main Window**: Control panel for managing all displays (`src/ControlPanel.tsx`)
+- **Overlay Windows**: Individual transparent overlay windows for each display
+  - Label pattern: `overlay-{displayId}` for window identification
+  - Created dynamically when blackout is enabled for a display
 
 ### Frontend (React + TypeScript)
 - **Entry**: `src/main.tsx` → `src/App.tsx`
-- **State Management**: Local React state for visibility and opacity
-- **Key Features**:
-  - Listens for `toggle-overlay` event from Tauri backend
-  - Registers global shortcut handler for `Cmd/Ctrl+Shift+B`
-  - Opacity slider control (0-1 range)
-  - Double-click to hide overlay
+- **Window Detection**: App.tsx determines window type and renders appropriate component
+- **Components**:
+  - `ControlPanel.tsx`: Main control interface for all displays
+  - `Overlay.tsx`: Black overlay component for individual display windows
+  - `DisplayCard.tsx`: Individual display control card
+- **State Management**: Local React state with optimistic updates
+- **Type-safe IPC**: Custom wrapper in `src/lib/ipc.ts` for type-safe backend communication
 
 ### Backend (Rust + Tauri)
 - **Entry**: `src-tauri/src/main.rs` → `src-tauri/src/lib.rs`
-- **Window Configuration**: `src-tauri/tauri.conf.json`
-  - Fullscreen, transparent, always-on-top window
-  - Initially hidden (`visible: false`)
-  - Window shown after setup via `window.show()`
-- **Global Shortcut**: Handled by `tauri-plugin-global-shortcut`
-  - Emits `toggle-overlay` event on `Cmd/Ctrl+Shift+B`
+- **Display Management**: `src-tauri/src/display.rs`
+  - Multi-monitor detection and management
+  - Overlay window lifecycle (create/show/hide/destroy)
+- **Recovery System**: `src-tauri/src/recovery.rs`
+  - Handles orphaned states and window recovery
+  - Ensures consistency between state and actual windows
+- **Global Shortcuts**:
+  - `Cmd/Ctrl+Shift+B`: Toggle all displays
+  - `Cmd/Ctrl+Alt+[1-4]`: Toggle individual displays
 
-### Critical Files
-- `src-tauri/icons/icon.png` - Required 32x32 RGBA PNG icon
-- `src-tauri/tauri.conf.json` - Window settings must have `visible: false` to prevent initial flash
+### IPC Interface
+**Commands** (TypeScript → Rust):
+- `get_displays`: Get all available displays
+- `create_overlay_for_display`: Create overlay window for specific display
+- `toggle_overlay_visibility`: Show/hide overlay window
+- `set_overlay_opacity`: Adjust overlay opacity (0-1)
+- `verify_and_recover_overlays`: Check and recover missing overlay windows
+- `force_recreate_overlay`: Force recreation of overlay window
+
+**Events** (Rust → TypeScript):
+- `toggle-all-displays`: Global shortcut triggered
+- `toggle-display`: Individual display shortcut triggered
+- `opacity-update`: Opacity change notification
+
+### IPC Interface Validation
+- Rust metadata generated during build (`src-tauri/build.rs`)
+- TypeScript tests validate interface consistency (`src/__tests__/ipc-interface.test.ts`)
+- Ensures type safety across language boundary
+
+## Platform-Specific Considerations
+
+### macOS
+- Requires `macOSPrivateApi: true` in tauri.conf.json for proper transparency
+- Window configuration: transparent, fullscreen, always-on-top
+- Universal binary support for Intel and Apple Silicon
+
+### Windows
+- Special handling for transparent overlays (see `src-tauri/src/lib.rs`)
+- Click-through behavior via window attributes
+- NSIS installer for distribution
+
+### Linux
+- AppImage and .deb package formats
+- X11/Wayland compatibility considerations
+
+## Critical Files
+- `src-tauri/tauri.conf.json`: Window configuration, must have `visible: false` to prevent initial flash
+- `src-tauri/icons/`: Platform-specific icons (32x32, 128x128, .icns, .ico)
+- `src-tauri/build.rs`: IPC metadata generation for interface validation
 
 ## Known Issues
 
-1. **Icon Requirements**: Tauri requires a valid 32x32 RGBA PNG at `src-tauri/icons/icon.png`
-2. **Initial Flash**: Window must be set to `visible: false` in config and shown programmatically
-3. **Transparency**: macOS requires proper window configuration for transparent overlays
+1. **Initial Flash**: Main window must be set to `visible: false` in config and shown programmatically
+2. **Overlay Timing**: Small delay needed after window creation before setting opacity
+3. **Recovery System**: Currently disabled in ControlPanel.tsx, can be re-enabled after confirming basic functionality
 
 ## Development Environment
 
 Uses Nix flake for reproducible development environment with:
 - Rust toolchain
-- Node.js
-- Platform-specific dependencies (macOS frameworks)
+- Node.js 20+
+- pnpm package manager
+- Platform-specific dependencies
 
 ## Debugging with dev3000
 
-This project is configured with [dev3000](https://github.com/vercel-labs/dev3000) for enhanced AI-assisted debugging.
+The project includes dev3000 integration for enhanced debugging capabilities.
 
-### Basic Usage
-1. Start dev3000 log collector: `pnpm dev:debug`
-2. In another terminal, start Tauri: `pnpm tauri dev`
-3. Logs are available at `/tmp/d3k.log`
+### Quick Start
+1. Start dev3000: `pnpm dev:debug`
+2. In another terminal: `pnpm tauri dev`
+3. Logs available at `/tmp/d3k.log`
 
-### MCP Integration
-dev3000 includes an MCP (Model Context Protocol) server that allows Claude Code to directly:
-- Analyze errors and debug issues
-- Execute browser actions for testing
-- Monitor application health
+### MCP Tools Available
+- `mcp__dev3000__debug_my_app`: Comprehensive application debugging
+- `mcp__dev3000__execute_browser_action`: Automated browser testing
 
-The MCP server is configured in `.mcp.json` and runs at `http://localhost:3684/api/mcp/mcp`.
-
-To add the MCP server to Claude Code:
-```bash
-claude mcp add --transport http --scope project dev3000 http://localhost:3684/api/mcp/mcp
-```
-
-### Using dev3000 MCP Tools in Claude Code
-
-Once dev3000 is running (`pnpm dev:debug`), you can use these MCP tools:
-
-#### 1. Debug My App (`mcp__dev3000__debug_my_app`)
-Comprehensive debugging tool that finds and analyzes all issues in your application.
-
-**Available modes:**
-- `snapshot`: Immediate analysis of current state
-- `bisect`: Compare before/after states during user testing
-- `monitor`: Continuous health monitoring
-
-**Example usage:**
-```
-# Get immediate comprehensive analysis
-Use mcp__dev3000__debug_my_app with mode: "snapshot"
-
-# Debug issues that occurred in the last 5 minutes
-Use mcp__dev3000__debug_my_app with mode: "snapshot", timeRangeMinutes: 5
-
-# Focus on specific areas
-Use mcp__dev3000__debug_my_app with mode: "snapshot", focusArea: "runtime"
-```
-
-#### 2. Execute Browser Action (`mcp__dev3000__execute_browser_action`)
-Test user workflows and reproduce issues by automating browser interactions.
-
-**Available actions:**
-- `click`: Click buttons/links (requires x,y coordinates)
-- `navigate`: Go to URLs
-- `scroll`: Scroll pages
-- `type`: Type text in forms
-- `evaluate`: Read page state with JavaScript
-
-**Example usage:**
-```
-# Navigate to a URL
-Use mcp__dev3000__execute_browser_action with action: "navigate", params: {url: "http://localhost:1420"}
-
-# Click at specific coordinates
-Use mcp__dev3000__execute_browser_action with action: "click", params: {x: 100, y: 200}
-
-# Type text
-Use mcp__dev3000__execute_browser_action with action: "type", params: {text: "Hello World"}
-```
-
-**Note:** dev3000 automatically captures screenshots during interactions, so you don't need to manually take screenshots.
-
-### Custom Logger
-The project includes a custom logger (`src/utils/logger.ts`) that automatically sends frontend logs to dev3000.
+Custom logger at `src/utils/logger.ts` automatically sends frontend logs to dev3000.
 
 ## Code Documentation Requirements
 
-**IMPORTANT**: All files and functions MUST include proper documentation explaining their purpose and intent.
+**IMPORTANT**: All files and functions MUST include documentation explaining purpose and intent.
 
 ### File-level Documentation
-Every file should start with a comment block that explains:
-- **Purpose**: Why this file exists and what problem it solves
-- **Responsibilities**: What this file is responsible for
-- **Dependencies**: Key dependencies or relationships with other parts of the system
-
-Example:
-```typescript
-/**
- * ControlPanel.tsx
- * 
- * Purpose: Provides a user interface for controlling multiple display overlays
- * 
- * This component allows users to:
- * - View all available displays
- * - Toggle individual display overlays on/off
- * - Adjust opacity for each display independently
- * - See real-time status of each display
- * 
- * Dependencies:
- * - Communicates with Tauri backend via IPC events
- * - Uses DisplayCard component for individual display controls
- */
-```
+Every file should explain:
+- Purpose and problem it solves
+- Key responsibilities
+- Dependencies and relationships
 
 ### Function-level Documentation
-Every function should have a comment block that includes:
-- **Purpose**: What the function does and why it exists
-- **Parameters**: Description of each parameter and its expected values
-- **Returns**: What the function returns and under what conditions
-- **Side Effects**: Any side effects or state changes
-
-Example:
-```typescript
-/**
- * Toggles the overlay visibility for a specific display
- * 
- * Purpose: Allows users to show/hide the blackout overlay on individual displays
- * without affecting other displays
- * 
- * @param displayId - Unique identifier of the display to toggle
- * @param visible - Whether to show (true) or hide (false) the overlay
- * @returns Promise that resolves when the backend has processed the command
- * 
- * Side Effects:
- * - Updates local state to reflect the new visibility status
- * - Sends IPC event to Tauri backend to update the actual overlay window
- */
-```
-
-### Why This Matters
-Clear documentation ensures:
-- Future developers (including yourself) understand the codebase quickly
-- The intent behind design decisions is preserved
-- Dependencies and relationships between components are explicit
-- Maintenance and refactoring become easier
+Every function should document:
+- Purpose and why it exists
+- Parameters and expected values
+- Return values and conditions
+- Side effects and state changes
