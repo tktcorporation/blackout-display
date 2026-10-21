@@ -47,7 +47,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version-file: 'package.json'
+          node-version: '24.22.1'
           cache: 'pnpm'  # Enable Node cache (pnpm must be installed first)
 
       # Cache PNPM store

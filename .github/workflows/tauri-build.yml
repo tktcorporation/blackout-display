@@ -19,7 +19,7 @@ jobs:
           version: latest
       - uses: actions/setup-node@v4
         with:
-          node-version-file: 'package.json'
+          node-version: '24.22.1'
           cache: 'pnpm'
       - uses: dtolnay/rust-toolchain@stable
       - name: Install dependencies
