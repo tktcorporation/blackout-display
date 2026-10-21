@@ -27,12 +27,12 @@ jobs:
     - name: Setup PNPM
       uses: pnpm/action-setup@v3
       with:
-        version: 10
+        version: 10.34.7
     
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20'
+        node-version: '22.23.4'
         cache: 'pnpm'
     
     - name: Install dependencies
@@ -75,12 +75,12 @@ jobs:
     - name: Setup PNPM
       uses: pnpm/action-setup@v3
       with:
-        version: 10
+        version: 10.34.7
     
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20'
+        node-version: '22.23.4'
         cache: 'pnpm'
     
     - name: Install Linux dependencies
